@@ -60,7 +60,15 @@
           "defaultChannel": "mesajlar"
         }
       ],
-      "./plugins/with-stat-icon.js"
+      "./plugins/with-stat-icon.js",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Görüntülü görüşme için kamera izni gerekiyor.",
+          "microphonePermission": "Sesli odalarda ve aramalarda konuşabilmen için mikrofon izni gerekiyor."
+        }
+      ],
+      "./plugins/with-voice-service.js"
     ],
     "experiments": {
       "typedRoutes": true

@@ -27,6 +27,12 @@ const P: Record<string, (c: string) => React.ReactNode> = {
   logout: () => <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
   file: () => (<><Path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><Path d="M14 3v6h6" /></>),
   hash: () => <Path d="M5 9h14M5 15h14M10 3 8 21M16 3l-2 18" />,
+  mic: () => (<><Rect x={9} y={3} width={6} height={11} rx={3} /><Path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>),
+  micOff: () => <Path d="M3 3l18 18M9 9v3a3 3 0 0 0 5 2M15 10V5a3 3 0 0 0-6-1M19 11a7 7 0 0 1-1 3.5M5 11a7 7 0 0 0 11 5.7M12 19v3" />,
+  headphones: () => <Path d="M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z" />,
+  headphonesOff: () => <Path d="M3 3l18 18M3 18v-6a9 9 0 0 1 3-6.7M9 3.5A9 9 0 0 1 21 12v4M3 19a2 2 0 0 0 2 2h1v-6H3zM18 15h3v4" />,
+  phone: () => <Path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" />,
+  hangup: () => <Path d="M21 15.5c-2.5-2-5.5-3-9-3s-6.5 1-9 3l2 3 3.5-1.5v-3a12 12 0 0 1 7 0v3l3.5 1.5z" />,
 };
 
 export function Icon({ name, size = 22, color: col = C.ink, stroke = 2.2 }: { name: keyof typeof P | string; size?: number; color?: ColorValue; stroke?: number }) {

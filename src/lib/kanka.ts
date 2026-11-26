@@ -28,6 +28,17 @@ export type State = {
   ageGate: LoginResult['ageGate'];
   friends: string[];
   dec: Record<string, Dec>; // şifreli mesajların bu cihazda açılmış hâli
+  ice: any[];
+  vflags: Record<string, Record<string, { m?: boolean; d?: boolean }>>;
+  myVoice: string | null;
+  vPeers: string[]; // odadaki diğer kişiler (aramalar dahil)
+  vConnecting: boolean;
+  muted: boolean;
+  deaf: boolean;
+  speaker: boolean;
+  speaking: Record<string, boolean>;
+  ringing: { from: string; chatId: string; callId: string; video?: boolean; title: string } | null;
+  outgoing: string | null; // aradığımız sohbet
   e2eLocked: boolean;
   e2eBusy: boolean;
   notice: string | null;
@@ -35,7 +46,7 @@ export type State = {
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], dec: {}, e2eLocked: false, e2eBusy: false, notice: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, e2eLocked: false, e2eBusy: false, notice: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -48,6 +59,13 @@ export function useKanka<T>(pick: (s: State) => T): T {
 }
 
 let socket: Socket | null = null;
+// Başka modüllerin (ses) sunucu olaylarını dinlemesi için
+const pendingHandlers: [string, (...a: any[]) => void][] = [];
+export function onSocket(ev: string, fn: (...a: any[]) => void) { pendingHandlers.push([ev, fn]); socket?.on(ev, fn); }
+export const socketId = () => socket?.id || null;
+// Oturum açıldıktan (ya da bağlantı geri gelip yeniden doğrulandıktan) sonra çalışacaklar
+export const afterAuth: (() => void)[] = [];
+export function setVoice(patch: Partial<State>) { set(patch); }
 const TOKEN = 'kanka-token';
 
 // Bekleyen cevaplı istek: sunucu cevap vermezse 15 sn sonra hata döner
@@ -87,13 +105,14 @@ function applyLogin(r: LoginResult) {
   for (const [n, s] of r.online || []) presence[n] = s;
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
-    voice: r.voice || {}, lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, friends: r.social?.friends || [],
+    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, friends: r.social?.friends || [],
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle
   fire('vis', AppState.currentState === 'active');
   // Açık bir sohbet varsa (bağlantı koptu ve geri geldi) odaya yeniden gir ve kaçırılanları al
   const cur = state.cur; if (cur) join(cur);
+  for (const f of afterAuth) { try { f(); } catch (e) { console.warn(e); } }
 }
 
 function onEvents(s: Socket) {
@@ -147,6 +166,9 @@ function onEvents(s: Socket) {
   }));
   s.on('social', (x: { friends?: string[] }) => set({ friends: x?.friends || [] }));
   s.on('voiceState', (voice: Record<string, string[]>) => set({ voice }));
+  s.on('voiceFlags', (vflags: State['vflags']) => set({ vflags: vflags || {} }));
+  s.on('ice', (ice: any[]) => set({ ice: ice || [] }));
+  for (const [ev, fn] of pendingHandlers) s.on(ev, fn);
   s.on('forceLogout', (msg: string) => { setItem(TOKEN, null); set({ phase: 'out', notice: String(msg || 'Oturumun kapatıldı.'), cur: null, msgs: {} }); });
 }
 

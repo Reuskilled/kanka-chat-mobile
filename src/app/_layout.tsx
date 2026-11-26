@@ -8,6 +8,8 @@ import { useFonts, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nuni
 import { C } from '@/lib/theme';
 import { start, useKanka } from '@/lib/kanka';
 import { listenPush, setupPush } from '@/lib/push';
+import { wireVoice } from '@/lib/voice';
+import { IncomingCall } from '@/components/VoiceUI';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -16,7 +18,7 @@ export default function RootLayout() {
   const phase = useKanka(s => s.phase);
   const seg = useSegments();
 
-  useEffect(() => { start(); return listenPush(); }, []);
+  useEffect(() => { wireVoice(); start(); return listenPush(); }, []);
   // Giriş yapılınca telefon bildirimlerini aç (ilk seferde izin sorulur)
   useEffect(() => { if (phase === 'in') { const t = setTimeout(() => setupPush(true), 1500); return () => clearTimeout(t); } }, [phase]);
   useEffect(() => { if (fontsOk && phase !== 'boot') SplashScreen.hideAsync().catch(() => {}); }, [fontsOk, phase]);
@@ -37,7 +39,9 @@ export default function RootLayout() {
         <Stack.Screen name="kanal/[id]" />
         <Stack.Screen name="giris" options={{ animation: 'fade' }} />
         <Stack.Screen name="kayit" />
+        <Stack.Screen name="ses" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
+      {phase === 'in' && <IncomingCall />}
       {(!fontsOk || phase === 'boot') && (
         <View style={{ position: 'absolute', inset: 0, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.accent} /></View>
       )}

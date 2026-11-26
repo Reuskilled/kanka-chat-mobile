@@ -12,6 +12,8 @@ import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
 import { Message } from '@/components/Message';
 import { Composer } from '@/components/Composer';
+import { startCall } from '@/lib/voice';
+import { Alert } from 'react-native';
 
 const QUICK = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 const EMPTY: Msg[] = [];
@@ -100,7 +102,9 @@ export default function Kanal() {
             </View>
             <T numberOfLines={1} style={{ fontSize: 12, color: C.muted }}>{isDm ? (secure ? 'Uçtan uca şifreli' : users[other]?.status || 'Özel mesaj') : f?.server.name}</T>
           </View>
-          <IconButton label="Ara"><Icon name="search" size={20} color={C.muted} /></IconButton>
+          {isDm ? (
+            <IconButton label="Sesli ara" onPress={async () => { const r = await startCall(id); if (r.error) Alert.alert('Arama başlatılamadı', r.error); else router.push('/ses'); }}><Icon name="phone" size={20} color={C.ink} /></IconButton>
+          ) : <IconButton label="Ara"><Icon name="search" size={20} color={C.muted} /></IconButton>}
           {!isDm && <IconButton label="Üyeler"><Icon name="users" size={21} color={C.muted} /></IconButton>}
         </View>
       </View>

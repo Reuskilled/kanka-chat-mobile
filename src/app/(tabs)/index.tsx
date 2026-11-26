@@ -10,6 +10,8 @@ import { useKanka } from '@/lib/kanka';
 import { getItem, setItem } from '@/lib/storage';
 import type { Channel, Server } from '@/lib/types';
 import { T } from '@/components/ui';
+import { joinVoice } from '@/lib/voice';
+import { Alert } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
 
@@ -35,7 +37,11 @@ function ChannelRow({ c, active, voiceUsers }: { c: Channel; active?: boolean; v
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={(voice ? 'Sesli oda ' : 'Kanal ') + c.name}
-        onPress={() => (voice ? null : router.push({ pathname: '/kanal/[id]', params: { id: c.id } }))}
+        onPress={async () => {
+          if (!voice) return router.push({ pathname: '/kanal/[id]', params: { id: c.id } });
+          const r = await joinVoice(c.id);
+          if (r.error) Alert.alert('Sesli odaya girilemedi', r.error); else router.push('/ses');
+        }}
         style={({ pressed }) => ({ height: 44, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, borderRadius: 10, backgroundColor: active ? C.accentSoft : pressed ? C.hover : 'transparent' })}
       >
         {voice ? <Icon name="speaker" size={17} color={n ? C.online : C.faint} /> : c.private || c.locked ? <Icon name="lock" size={16} color={C.faint} /> : <T style={{ fontSize: 19, color: C.faint, width: 16, textAlign: 'center' }}>#</T>}
