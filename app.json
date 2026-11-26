@@ -19,7 +19,8 @@
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA"
       ]
     },
     "ios": {
@@ -42,7 +43,24 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 120
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sohbete fotoğraf ve video gönderebilmen için galerine erişim gerekiyor.",
+          "cameraPermission": "Sohbete fotoğraf çekip gönderebilmen için kamera izni gerekiyor.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/bildirim-ikonu.png",
+          "color": "#D4FF00",
+          "defaultChannel": "mesajlar"
+        }
+      ],
+      "./plugins/with-stat-icon.js"
     ],
     "experiments": {
       "typedRoutes": true

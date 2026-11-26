@@ -59,17 +59,17 @@ export default function Kayit() {
           <Field label="E-posta" value={f.email} onChangeText={up('email')} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder="ornek@gmail.com" error={err?.field === 'email'} />
           <Field label="Şifre" value={f.password} onChangeText={up('password')} secureTextEntry autoComplete="new-password" textContentType="newPassword" placeholder="En az 8 karakter" />
           <Field label="Doğum tarihi" value={f.dob} onChangeText={up('dob')} keyboardType="numbers-and-punctuation" placeholder="GG.AA.YYYY" maxLength={10} error={err?.field === 'dob'} />
-          {age !== null && age < 15 && <ErrorText>Kanka'da hesap açmak için 15 yaşında ya da daha büyük olmalısın.</ErrorText>}
+          {age !== null && age < 15 && <ErrorText>{"Kanka'da hesap açmak için 15 yaşında ya da daha büyük olmalısın."}</ErrorText>}
           <Field label="Davet kodu (varsa)" value={f.code} onChangeText={up('code')} autoCapitalize="characters" placeholder="KNK-…" error={err?.field === 'code'} />
           <Check on={terms} onToggle={() => setTerms(v => !v)}>
             <T style={{ color: C.muted, fontSize: 14, lineHeight: 20 }}>
-              <T onPress={() => Linking.openURL(SERVER + '/kosullar')} style={{ color: C.accent, fontSize: 14, fontFamily: F.heavy }}>Kullanım Koşulları</T>'nı ve{' '}
-              <T onPress={() => Linking.openURL(SERVER + '/gizlilik')} style={{ color: C.accent, fontSize: 14, fontFamily: F.heavy }}>Gizlilik Politikası</T>'nı okudum, kabul ediyorum.
+              <T onPress={() => Linking.openURL(SERVER + '/kosullar')} style={{ color: C.accent, fontSize: 14, fontFamily: F.heavy }}>Kullanım Koşulları</T>{"'nı ve "}
+              <T onPress={() => Linking.openURL(SERVER + '/gizlilik')} style={{ color: C.accent, fontSize: 14, fontFamily: F.heavy }}>Gizlilik Politikası</T>{"'nı okudum, kabul ediyorum."}
             </T>
           </Check>
           {age !== null && age >= 15 && age < 18 && (
             <Check on={veli} onToggle={() => setVeli(v => !v)}>
-              <T style={{ color: C.muted, fontSize: 14, lineHeight: 20 }}>18 yaşından küçüğüm; Kanka'yı velimin bilgisi ve izniyle kullanıyorum.</T>
+              <T style={{ color: C.muted, fontSize: 14, lineHeight: 20 }}>{"18 yaşından küçüğüm; Kanka'yı velimin bilgisi ve izniyle kullanıyorum."}</T>
             </Check>
           )}
           <ErrorText>{err?.text}</ErrorText>

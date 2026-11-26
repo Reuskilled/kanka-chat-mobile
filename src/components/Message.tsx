@@ -5,6 +5,7 @@ import { C, F } from '@/lib/theme';
 import { abs } from '@/lib/config';
 import { useKanka, react } from '@/lib/kanka';
 import { clock } from '@/lib/time';
+import { encFileOk, isImg, useEncFile, type EncFile } from '@/lib/encfile';
 import type { Msg } from '@/lib/types';
 import { T } from './ui';
 import { Avatar } from './Avatar';
@@ -46,15 +47,30 @@ function Reactions({ m, me }: { m: Msg; me: string | null }) {
   );
 }
 
-function Body({ m, me }: { m: Msg; me: string | null }) {
-  if (m.deleted) return <T style={{ fontSize: 14, color: C.faint, fontStyle: 'italic' }}>Bu mesaj silindi</T>;
-  if (m.enc) return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      <Icon name="lock" size={14} color={C.online} />
-      <T style={{ fontSize: 14, color: C.muted, fontStyle: 'italic', flexShrink: 1 }}>Şifreli mesaj</T>
-    </View>
-  );
-  const img = abs(m.image || m.gif);
+function Body({ m: m0, me }: { m: Msg; me: string | null }) {
+  const dec = useKanka(s => (m0.enc ? s.dec[m0.id] : undefined));
+  const locked = useKanka(s => s.e2eLocked);
+  if (m0.deleted) return <T style={{ fontSize: 14, color: C.faint, fontStyle: 'italic' }}>Bu mesaj silindi</T>;
+  let m = m0;
+  if (m0.enc) {
+    if (!dec || !('inner' in dec)) return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Icon name="lock" size={14} color={dec && 'bad' in dec ? C.danger : C.muted} />
+        <T style={{ fontSize: 14, color: C.muted, fontStyle: 'italic', flexShrink: 1 }}>{dec && 'bad' in dec ? 'Bu şifreli mesaj doğrulanamadı' : locked ? 'Şifreli mesaj · görmek için kilidi aç' : 'Şifreli mesaj · anahtar bekleniyor'}</T>
+      </View>
+    );
+    const x = dec.inner;
+    const ef = (Array.isArray(x.f) ? x.f : []).slice(0, 10).filter(encFileOk);
+    m = { ...m0, text: typeof x.t === 'string' ? x.t.slice(0, 4000) : '', gif: (x.g as any)?.url || null, image: null, files: [] };
+    if (ef.length || x.au) return (
+      <View>
+        {!!m.text && <RichText text={m.text} me={me} />}
+        {ef.map(f => isImg(f.m) ? <EncImage key={f.i} f={f} /> : <FileCard key={f.i} name={f.n || 'dosya'} note="şifreli dosya · webden açılır" />)}
+        {!!x.au && <FileCard name="Ses mesajı" note="şifreli · yakında mobilde dinlenecek" icon="speaker" />}
+      </View>
+    );
+  }
+  const img = abs(m.image || (typeof m.gif === 'string' ? m.gif : (m.gif as any)?.url));
   return (
     <View>
       {m.kind === 'bot' && m.bot ? (
@@ -68,13 +84,36 @@ function Body({ m, me }: { m: Msg; me: string | null }) {
           <Image source={{ uri: img }} style={{ marginTop: 6, width: 240, height: 170, borderRadius: 14, backgroundColor: C.card }} contentFit="cover" transition={150} />
         </Pressable>
       )}
-      {(m.files || []).map((f, i) => (
-        <Pressable key={i} accessibilityRole="link" onPress={() => { const u = abs(f.url); if (u) Linking.openURL(u); }}
-          style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineStrong, maxWidth: 280 }}>
-          <Icon name="file" size={20} color={C.accent} />
-          <T numberOfLines={1} style={{ flex: 1, fontFamily: F.bold, fontSize: 14 }}>{f.name || 'dosya'}</T>
+      {(m.files || []).map((f, i) => f.kind === 'image' ? (
+        <Pressable key={i} accessibilityRole="imagebutton" accessibilityLabel={`${f.name || 'Resim'} aç`} onPress={() => { const u = abs(f.url); if (u) Linking.openURL(u); }}>
+          <Image source={{ uri: abs(f.url) || undefined }} style={{ marginTop: 6, width: 240, height: 180, borderRadius: 14, backgroundColor: C.card }} contentFit="cover" transition={150} />
         </Pressable>
+      ) : (
+        <FileCard key={i} name={f.name || 'dosya'} note={f.size ? fmtSize(f.size) : undefined} onPress={() => { const u = abs(f.url); if (u) Linking.openURL(u); }} />
       ))}
+    </View>
+  );
+}
+
+const fmtSize = (n: number) => (n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+function FileCard({ name, note, onPress, icon = 'file' }: { name: string; note?: string; onPress?: () => void; icon?: string }) {
+  return (
+    <Pressable accessibilityRole={onPress ? 'link' : undefined} onPress={onPress} disabled={!onPress}
+      style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineStrong, maxWidth: 290 }}>
+      <Icon name={icon} size={20} color={C.accent} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 14 }}>{name}</T>
+        {!!note && <T numberOfLines={1} style={{ fontSize: 12, color: C.muted }}>{note}</T>}
+      </View>
+    </Pressable>
+  );
+}
+function EncImage({ f }: { f: EncFile }) {
+  const { url, failed } = useEncFile(f, true);
+  if (failed) return <FileCard name={f.n || 'Resim'} note="açılamadı" />;
+  return (
+    <View style={{ marginTop: 6, width: 240, height: 180, borderRadius: 14, backgroundColor: C.card, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+      {url ? <Image source={{ uri: url }} style={{ width: 240, height: 180 }} contentFit="cover" accessibilityLabel={f.n || 'Şifreli resim'} /> : <Icon name="lock" size={20} color={C.faint} />}
     </View>
   );
 }
@@ -93,6 +132,8 @@ function SysRow({ m }: { m: Msg }) {
 export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head: boolean; onLong: (m: Msg) => void }) {
   const me = useKanka(s => s.me);
   const u = useKanka(s => (m.author ? s.users[m.author] : undefined));
+  const repDec = useKanka(s => (m.replyTo?.enc ? s.dec[m.replyTo.id] : undefined));
+  const repText = m.replyTo?.enc ? (repDec && 'inner' in repDec ? String(repDec.inner.t || 'Dosya') : 'Şifreli mesaj') : m.replyTo?.text;
   if (!m.author && m.kind !== 'bot') return <SysRow m={m} />;
   if (m.kind === 'system' || m.kind === 'daily' || m.kind === 'call') return <SysRow m={m} />;
   const author = m.author || 'Kanka Bot';
@@ -106,7 +147,7 @@ export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <Icon name="reply" size={13} color={C.muted} />
             <T numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: C.muted }}>
-              <T style={{ fontSize: 12.5, fontFamily: F.heavy, color: C.ink2 }}>{m.replyTo.author}</T> {m.replyTo.enc ? 'şifreli mesaj' : m.replyTo.text}
+              <T style={{ fontSize: 12.5, fontFamily: F.heavy, color: C.ink2 }}>{m.replyTo.author}</T> {repText}
             </T>
           </View>
         )}

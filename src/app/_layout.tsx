@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
 import { C } from '@/lib/theme';
 import { start, useKanka } from '@/lib/kanka';
+import { listenPush, setupPush } from '@/lib/push';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -15,7 +16,9 @@ export default function RootLayout() {
   const phase = useKanka(s => s.phase);
   const seg = useSegments();
 
-  useEffect(() => { start(); }, []);
+  useEffect(() => { start(); return listenPush(); }, []);
+  // Giriş yapılınca telefon bildirimlerini aç (ilk seferde izin sorulur)
+  useEffect(() => { if (phase === 'in') { const t = setTimeout(() => setupPush(true), 1500); return () => clearTimeout(t); } }, [phase]);
   useEffect(() => { if (fontsOk && phase !== 'boot') SplashScreen.hideAsync().catch(() => {}); }, [fontsOk, phase]);
 
   // Oturum yoksa giriş ekranına, varsa ana ekrana

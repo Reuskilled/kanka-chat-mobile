@@ -58,8 +58,8 @@ export default function Giris() {
             <T style={{ color: C.muted, fontFamily: F.bold }}>Hesabın yok mu? <Link href="/kayit" style={{ color: C.accent, fontFamily: F.black }}>Kayıt ol</Link></T>
             <T style={{ color: C.faint, fontSize: 12, textAlign: 'center', lineHeight: 18, maxWidth: 300 }}>
               Kanka 15 yaş ve üzeri içindir. Devam ederek{' '}
-              <T onPress={() => Linking.openURL(SERVER + '/kosullar')} style={{ color: C.muted, fontSize: 12, textDecorationLine: 'underline' }}>Kullanım Koşulları</T>'nı ve{' '}
-              <T onPress={() => Linking.openURL(SERVER + '/gizlilik')} style={{ color: C.muted, fontSize: 12, textDecorationLine: 'underline' }}>Gizlilik Politikası</T>'nı kabul edersin.
+              <T onPress={() => Linking.openURL(SERVER + '/kosullar')} style={{ color: C.muted, fontSize: 12, textDecorationLine: 'underline' }}>Kullanım Koşulları</T>{"'nı ve "}
+              <T onPress={() => Linking.openURL(SERVER + '/gizlilik')} style={{ color: C.muted, fontSize: 12, textDecorationLine: 'underline' }}>Gizlilik Politikası</T>{"'nı kabul edersin."}
             </T>
           </View>
         </ScrollView>

@@ -11,8 +11,8 @@ export async function getItem(key: string): Promise<string | null> {
 }
 
 export async function setItem(key: string, value: string | null): Promise<void> {
-  if (web) { try { value == null ? globalThis.localStorage?.removeItem(key) : globalThis.localStorage?.setItem(key, value); } catch {} return; }
-  try { value == null ? await SecureStore.deleteItemAsync(key) : await SecureStore.setItemAsync(key, value); } catch {}
+  if (web) { try { if (value == null) globalThis.localStorage?.removeItem(key); else globalThis.localStorage?.setItem(key, value); } catch {} return; }
+  try { if (value == null) await SecureStore.deleteItemAsync(key); else await SecureStore.setItemAsync(key, value); } catch {}
 }
 
 // Cihaz kimliği: sunucunun "yeni cihazdan giriş" uyarısı ve cihaz listesi için. Rastgele, kişisel bilgi içermez.

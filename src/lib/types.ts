@@ -62,7 +62,7 @@ export type Msg = {
   replyTo?: { id: string; author: string; text?: string; enc?: boolean } | null;
   edited?: number;
   deleted?: boolean;
-  files?: { url: string; name?: string; size?: number; type?: string }[];
+  files?: { id?: string; url: string; name?: string; size?: number; kind?: string }[];
   image?: string | null;
   gif?: string | null;
   bot?: { title?: string; text?: string; tone?: string };
