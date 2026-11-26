@@ -68,7 +68,8 @@
           "microphonePermission": "Sesli odalarda ve aramalarda konuşabilmen için mikrofon izni gerekiyor."
         }
       ],
-      "./plugins/with-voice-service.js"
+      "./plugins/with-voice-service.js",
+      "./plugins/with-proguard.js"
     ],
     "experiments": {
       "typedRoutes": true
