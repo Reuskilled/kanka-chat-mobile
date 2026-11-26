@@ -10,7 +10,7 @@ export function webPlay(id: string, stream: any) {
   if (!a) { a = document.createElement('audio'); a.autoplay = true; document.body.appendChild(a); els.set(id, a); }
   a.srcObject = stream;
 }
-export function webStop(id: string) { els.get(id)?.remove(); els.delete(id); }
+export function webStop(id: string) { for (const [k, a] of els) if (k === id || k.startsWith(id + ':')) { a.remove(); els.delete(k); } }
 
 export async function audioStart(_speaker: boolean) {}
 export function audioStop() {}

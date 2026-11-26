@@ -77,7 +77,8 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/with-screen-share.js"
     ],
     "experiments": {
       "typedRoutes": true

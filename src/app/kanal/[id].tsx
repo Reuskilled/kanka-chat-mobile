@@ -108,9 +108,10 @@ export default function Kanal() {
             </View>
             <T numberOfLines={1} style={{ fontSize: 12, color: C.muted }}>{isDm ? (secure ? 'Uçtan uca şifreli' : users[other]?.status || 'Özel mesaj') : f?.server.name}</T>
           </View>
-          {isDm ? (
+          {isDm ? (<>
             <IconButton label="Sesli ara" onPress={async () => { const r = await startCall(id); if (r.error) Alert.alert('Arama başlatılamadı', r.error); else router.push('/ses'); }}><Icon name="phone" size={20} color={C.ink} /></IconButton>
-          ) : <IconButton label="Ara"><Icon name="search" size={20} color={C.muted} /></IconButton>}
+            <IconButton label="Görüntülü ara" onPress={async () => { const r = await startCall(id, true); if (r.error) Alert.alert('Arama başlatılamadı', r.error); else router.push('/ses'); }}><Icon name="video" size={21} color={C.ink} /></IconButton>
+          </>) : <IconButton label="Ara"><Icon name="search" size={20} color={C.muted} /></IconButton>}
           {!isDm && <IconButton label="Üyeler"><Icon name="users" size={21} color={C.muted} /></IconButton>}
         </View>
       </View>

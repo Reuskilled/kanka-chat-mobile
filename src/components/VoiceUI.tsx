@@ -44,7 +44,6 @@ export function IncomingCall() {
           {group ? <View style={{ width: 110, height: 110, borderRadius: 55, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center' }}><Icon name="users" size={44} /></View> : <Avatar name={r.from} size={110} />}
           <T style={{ fontFamily: F.black, fontSize: 26, textAlign: 'center' }}>{group ? r.title : users[r.from]?.displayName || r.from}</T>
           <T style={{ color: C.muted, fontSize: 16 }}>{r.video ? 'Görüntülü arıyor…' : 'Sesli arıyor…'}{group ? ` · ${r.from}` : ''}</T>
-          {r.video && <T style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingHorizontal: 30 }}>Görüntü bu sürümde yok; sesli katılırsın.</T>}
         </View>
         <View style={{ flexDirection: 'row', gap: 70 }}>
           <View style={{ alignItems: 'center', gap: 8 }}>
@@ -52,10 +51,15 @@ export function IncomingCall() {
             <T style={{ color: C.muted, fontFamily: F.bold }}>Reddet</T>
           </View>
           <View style={{ alignItems: 'center', gap: 8 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Kabul et" onPress={async () => { const x = await acceptCall(); if (!x.error) router.push('/ses'); }} style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: C.online, alignItems: 'center', justifyContent: 'center' }}><Icon name="phone" size={28} color="#07130c" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={r.video ? 'Görüntülü kabul et' : 'Kabul et'} onPress={async () => { const x = await acceptCall(); if (!x.error) router.push('/ses'); }} style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: C.online, alignItems: 'center', justifyContent: 'center' }}><Icon name={r.video ? 'video' : 'phone'} size={28} color="#07130c" /></Pressable>
             <T style={{ color: C.muted, fontFamily: F.bold }}>Kabul et</T>
           </View>
         </View>
+        {r.video && (
+          <Pressable accessibilityRole="button" onPress={async () => { const x = await acceptCall(false); if (!x.error) router.push('/ses'); }} style={{ position: 'absolute', bottom: insets.bottom + 18, paddingHorizontal: 16, height: 36, justifyContent: 'center' }}>
+            <T style={{ color: C.ink2, fontFamily: F.heavy, fontSize: 14 }}>Kamerasız katıl</T>
+          </Pressable>
+        )}
       </View>
     </Modal>
   );

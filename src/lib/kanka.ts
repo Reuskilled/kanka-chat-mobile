@@ -40,6 +40,11 @@ export type State = {
   speaking: Record<string, boolean>;
   ringing: { from: string; chatId: string; callId: string; video?: boolean; title: string } | null;
   outgoing: string | null; // aradığımız sohbet
+  myCam: boolean; myScreen: boolean; camFront: boolean;
+  vMedia: Record<string, { name: string; cam: boolean; screen: boolean }>; // odadakilerin kamera/yayın durumu (bağlantı kimliğine göre)
+  vWatch: string | null; // izlediğim ekran yayını
+  vVer: number; // görüntü akışları değişince ekranı tazelemek için
+  vToast: string | null;
   e2eLocked: boolean;
   e2eBusy: boolean;
   notice: string | null;
@@ -47,7 +52,7 @@ export type State = {
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, e2eLocked: false, e2eBusy: false, notice: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, e2eLocked: false, e2eBusy: false, notice: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
