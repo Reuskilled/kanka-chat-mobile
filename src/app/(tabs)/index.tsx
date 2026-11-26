@@ -14,6 +14,7 @@ import { joinVoice } from '@/lib/voice';
 import { Alert } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
+import { canAdmin } from '@/lib/admin';
 
 function ServerIcon({ s, active, onPress }: { s: Server; active: boolean; onPress: () => void }) {
   const img = abs(s.iconImg);
@@ -98,6 +99,10 @@ export default function Sunucular() {
             <View style={{ height: 120, justifyContent: 'flex-end', padding: 16, backgroundColor: server.bannerColor || '#1c1410' }}>
               {banner && <Image source={{ uri: banner }} style={{ position: 'absolute', inset: 0 }} contentFit="cover" />}
               <LinearGradient colors={banner ? ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.8)'] : ['rgba(255,255,255,0.06)', 'rgba(0,0,0,0.35)']} style={{ position: 'absolute', inset: 0 }} />
+              <Pressable accessibilityRole="button" accessibilityLabel="Sunucu ayarları ve davet" onPress={() => router.push(`/sunucu/${server.id}` as any)} hitSlop={8}
+                style={{ position: 'absolute', top: 12, right: 12, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={canAdmin(server) ? 'settings' : 'userAdd'} size={20} color="#fff" />
+              </Pressable>
               <T accessibilityRole="header" numberOfLines={1} style={{ fontFamily: F.black, fontSize: 19 }}>{server.name}</T>
               <T style={{ fontSize: 12.5, color: '#d4d4d8', marginTop: 2 }}>{server.members.length} üye · {online} çevrimiçi</T>
             </View>

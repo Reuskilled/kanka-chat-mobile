@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import '@/lib/webAlert';
 import { View, ActivityIndicator } from 'react-native';
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

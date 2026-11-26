@@ -26,6 +26,7 @@ export type Channel = {
   type: 'text' | 'voice' | 'forum' | 'stage' | string;
   cat?: string | null;
   topic?: string;
+  slow?: number;
   private?: boolean;
   locked?: boolean;
   readonly?: boolean;
@@ -45,8 +46,19 @@ export type Server = {
   channels: Channel[];
   categories: Category[];
   memberRoles?: Record<string, string[]>;
-  customRoles?: { id: string; name: string; color?: string }[];
+  customRoles?: Role[];
+  roles?: Record<string, string>; // eski "mod" rolü
+  myPerms?: string[];
+  bans?: Record<string, { by: string; time: number; reason?: string }>;
+  timeouts?: Record<string, number>;
+  invite?: string;
+  vanity?: string | null;
+  public?: boolean;
+  filter?: boolean;
+  slow?: number;
+  description?: string;
 };
+export type Role = { id: string; name: string; color?: string; perms?: string[]; hoist?: boolean; bot?: boolean; mention?: boolean };
 
 export type Dm = { id: string; with?: string; name?: string; members?: string[]; last?: number };
 

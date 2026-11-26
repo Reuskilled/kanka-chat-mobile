@@ -56,6 +56,8 @@ let state: State = {
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
+// Bağlı ve girişli miyiz: sunucudan veri isteyen ekranlar bunu bekler (soğuk açılışta erken istek boş dönmesin)
+export const useReady = () => useKanka(s => s.connected && s.phase === 'in');
 function set(patch: Partial<State> | ((s: State) => Partial<State>)) {
   state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) };
   subs.forEach(f => f());
@@ -155,6 +157,9 @@ function onEvents(s: Socket) {
       const list = st.msgs[channelId]; if (!list) return {};
       return { msgs: { ...st.msgs, [channelId]: list.map(m => (m.id === msg.id ? msg : m)) } };
     });
+  });
+  s.on('remove', ({ channelId, msgId }: { channelId: string; msgId: string }) => {
+    set(st => { const list = st.msgs[channelId]; return list ? { msgs: { ...st.msgs, [channelId]: list.filter(m => m.id !== msgId) } } : {}; });
   });
   s.on('typing', ({ channelId, name }: { channelId: string; name: string }) => {
     set(st => ({ typing: { ...st.typing, [channelId]: { ...(st.typing[channelId] || {}), [name]: Date.now() } } }));
@@ -272,6 +277,15 @@ async function uploadVoice(v: Voice): Promise<{ url?: string; error?: string }> 
   return r?.url ? { url: r.url } : { error: r?.error || 'Ses yüklenemedi' };
 }
 
+// Sunucu simgesi / afiş gibi herkese açık resimler (sitedeki gibi 'upload' ile, en çok 5 MB)
+export async function uploadImage(uri: string, type: string): Promise<{ url?: string; error?: string }> {
+  const b = await readBytes(uri);
+  if (b.length > 5 * 1024 * 1024) return { error: 'Resim en fazla 5 MB olabilir' };
+  const t = /^image\/(png|jpeg|gif|webp)$/.test(type) ? type : 'image/jpeg';
+  const r = await ask<{ url?: string; error?: string }>('upload', { data: `data:${t};base64,${b64(b)}` });
+  return r?.url ? { url: r.url } : { error: r?.error || 'Resim yüklenemedi' };
+}
+
 export async function send(text: string, replyTo?: string | null, atts: Att[] = [], voice?: Voice): Promise<{ error?: string }> {
   const ch = state.cur;
   const sendEnc = async () => {
@@ -307,6 +321,8 @@ export async function send(text: string, replyTo?: string | null, atts: Att[] = 
   return r?.error ? { error: r.error } : {};
 }
 export const react = (msgId: string, emoji: string) => fire('react', { msgId, emoji });
+export const delMsg = (msgId: string) => fire('delete', msgId);
+export const pinMsg = (msgId: string) => fire('pin', msgId);
 let lastTyping = 0;
 export function typing() { const n = Date.now(); if (n - lastTyping > 3000) { lastTyping = n; fire('typing'); } }
 

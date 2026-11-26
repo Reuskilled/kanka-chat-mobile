@@ -1,0 +1,46 @@
+import { Alert, Share, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import { useKanka } from '@/lib/kanka';
+import { can, canAdmin, isMod, isOwner, inviteUrl, act } from '@/lib/admin';
+import { Screen, Section, Row, Empty } from '@/components/AdminUI';
+import { T } from '@/components/ui';
+import { C } from '@/lib/theme';
+
+// Sunucu menüsü: herkes davet paylaşır, üyeleri görür, ayrılır; yetkisi olan ayarlara girer
+export default function SunucuMenu() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const s = useKanka(st => st.servers.find(x => x.id === id) || null);
+  if (!s) return <Screen title="Sunucu"><Empty text="Bu sunucu artık listende değil." /></Screen>;
+  const go = (p: string) => router.push(`/sunucu/${s.id}/${p}` as any);
+  const share = async () => { const url = inviteUrl(s); try { await Share.share({ message: `${s.name} sunucusuna gel: ${url}` }); } catch { await Clipboard.setStringAsync(url); Alert.alert('Kopyalandı', url); } };
+  const leave = () => Alert.alert('Sunucudan ayrıl', `${s.name} sunucusundan ayrılmak istiyor musun?`, [
+    { text: 'Vazgeç', style: 'cancel' },
+    { text: 'Ayrıl', style: 'destructive', onPress: async () => { const e = await act('leaveServer', s.id); if (e) Alert.alert('Ayrılamadın', e); else router.dismissAll(); } },
+  ]);
+  const admin = canAdmin(s);
+  return (
+    <Screen title={s.name} sub={`${s.members.length} üye${isOwner(s) ? ' · sahibisin' : ''}`}>
+      {!s.public && (
+        <Section>
+          <Row icon="userAdd" iconColor={C.accent} title="Arkadaşlarını davet et" sub={inviteUrl(s).replace(/^https?:\/\//, '')} onPress={share} last />
+        </Section>
+      )}
+      <Section title="Sunucu">
+        {can(s, 'manageServer') && <Row icon="settings" title="Genel ayarlar" sub="Ad, simge, küfür filtresi, yavaş mod" onPress={() => go('genel')} />}
+        {can(s, 'manageChannels') && <Row icon="hash" title="Odalar ve kategoriler" sub={`${s.channels.length} oda`} onPress={() => go('odalar')} />}
+        {can(s, 'manageRoles') && <Row icon="tag" title="Roller" sub={`${(s.customRoles || []).length} rol`} onPress={() => go('roller')} />}
+        <Row icon="users" title="Üyeler" sub={isMod(s) ? 'Rol ver, sustur, at, yasakla' : 'Sunucudaki herkes'} onPress={() => go('uyeler')} last={!can(s, 'manageServer')} />
+        {can(s, 'manageServer') && !s.public && <Row icon="userAdd" title="Davet linkleri" sub="Süreli ya da sınırlı link oluştur" onPress={() => go('davetler')} last />}
+      </Section>
+      {admin && (
+        <Section title="Moderasyon">
+          {isMod(s) && <Row icon="bell" title="Şikayetler" sub="Üyelerin bildirdiği mesajlar" onPress={() => go('sikayetler')} />}
+          {(can(s, 'viewAudit') || isMod(s)) && <Row icon="clock" title="Kayıt defteri" sub="Kim neyi değiştirdi" onPress={() => go('kayit')} last />}
+        </Section>
+      )}
+      {!s.public && !isOwner(s) && <Section><Row icon="logout" title="Sunucudan ayrıl" danger onPress={leave} last /></Section>}
+      {isOwner(s) && <View style={{ paddingHorizontal: 4 }}><T style={{ fontSize: 12.5, color: C.faint }}>Sahipliği devretmek ve sunucuyu silmek şifre onayı gerektirdiği için webden yapılır.</T></View>}
+    </Screen>
+  );
+}

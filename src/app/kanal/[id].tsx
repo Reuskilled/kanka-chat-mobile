@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { type Att, type Voice, ask, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
+import { type Att, type Voice, ask, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
 import type { Msg } from '@/lib/types';
 import { dayLabel } from '@/lib/time';
 import { T, IconButton } from '@/components/ui';
@@ -14,6 +14,9 @@ import { Message } from '@/components/Message';
 import { Composer } from '@/components/Composer';
 import { startCall } from '@/lib/voice';
 import { Alert } from 'react-native';
+import { can, isMod } from '@/lib/admin';
+
+const REASONS: [string, string][] = [['spam', 'Spam ya da reklam'], ['taciz', 'Taciz veya zorbalık'], ['nefret', 'Nefret söylemi'], ['cinsel', 'Cinsel içerik'], ['siddet', 'Şiddet ya da tehdit'], ['dolandir', 'Dolandırıcılık'], ['cocuk', 'Çocuk güvenliği'], ['diger', 'Diğer']];
 
 const QUICK = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 const EMPTY: Msg[] = [];
@@ -86,6 +89,17 @@ export default function Kanal() {
     setReply(null); return true;
   };
   const onLong = useCallback((m: Msg) => setMenu(m), []);
+  // Sunucuda moderatör başkasının mesajını silebilir / sabitleyebilir (sunucu da ayrıca kontrol eder)
+  const canDel = !!f && (isMod(f.server) || can(f.server, 'manageMessages'));
+  const canPin = isDm || (!!f && (canDel || can(f.server, 'pinMessages')));
+  const [report, setReport] = useState<Msg | null>(null);
+  const askDel = (m: Msg) => Alert.alert('Mesajı sil', m.author === me ? 'Bu mesaj herkesten silinecek.' : `${users[m.author || '']?.displayName || m.author} kişisinin mesajı silinecek.`, [
+    { text: 'Vazgeç', style: 'cancel' }, { text: 'Sil', style: 'destructive', onPress: () => delMsg(m.id) }]);
+  const sendReport = async (reason: string) => {
+    const m = report; setReport(null); if (!m) return;
+    const r = await ask<{ error?: string; dup?: boolean }>('report', { kind: 'msg', msgId: m.id, chId: id, reason });
+    Alert.alert(r?.error ? 'Gönderilemedi' : 'Teşekkürler', r?.error || (r?.dup ? 'Bu mesajı zaten bildirmiştin.' : 'Şikayetin moderatörlere iletildi.'));
+  };
   const doUnlock = async () => {
     if (!upw) return; setUbusy(true);
     const ok = await unlockE2E(upw); setUbusy(false);
@@ -186,9 +200,24 @@ export default function Kanal() {
             {[
               { t: 'Yanıtla', ic: 'reply', on: () => menu && setReply(menu) },
               ...(menuText ? [{ t: 'Metni kopyala', ic: 'file', on: () => Clipboard.setStringAsync(menuText) }] : []),
-            ].map(a => (
+              ...(menu && canPin ? [{ t: (menu as any).pinned ? 'Sabitlemeyi kaldır' : 'Sabitle', ic: 'tag', on: () => pinMsg(menu.id) }] : []),
+              ...(menu && menu.author && menu.author !== me && !menu.enc ? [{ t: 'Şikayet et', ic: 'bell', on: () => setReport(menu) }] : []),
+              ...(menu && (menu.author === me || canDel) ? [{ t: 'Mesajı sil', ic: 'trash', danger: true, on: () => askDel(menu) }] : []),
+            ].map((a: { t: string; ic: string; on: () => void; danger?: boolean }) => (
               <Pressable key={a.t} accessibilityRole="button" onPress={() => { a.on(); setMenu(null); }} style={({ pressed }) => ({ height: 50, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, borderRadius: 12, backgroundColor: pressed ? C.hover : C.card })}>
-                <Icon name={a.ic} size={20} color={C.muted} /><T style={{ fontFamily: F.heavy, fontSize: 15.5 }}>{a.t}</T>
+                <Icon name={a.ic} size={20} color={a.danger ? C.danger : C.muted} /><T style={{ fontFamily: F.heavy, fontSize: 15.5, color: a.danger ? '#f87171' : C.ink }}>{a.t}</T>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <Modal visible={!!report} transparent animationType="fade" onRequestClose={() => setReport(null)}>
+        <Pressable accessibilityLabel="Kapat" onPress={() => setReport(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+          <Pressable style={{ backgroundColor: C.panel, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: insets.bottom + 16, gap: 8 }}>
+            <T accessibilityRole="header" style={{ fontFamily: F.black, fontSize: 18, marginBottom: 4 }}>Neden şikayet ediyorsun?</T>
+            {REASONS.map(([k, l]) => (
+              <Pressable key={k} accessibilityRole="button" onPress={() => sendReport(k)} style={({ pressed }) => ({ height: 48, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 12, backgroundColor: pressed ? C.hover : C.card })}>
+                <T style={{ fontFamily: F.heavy, fontSize: 15 }}>{l}</T>
               </Pressable>
             ))}
           </Pressable>
