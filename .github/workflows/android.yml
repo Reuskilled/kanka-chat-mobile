@@ -1,0 +1,78 @@
+# Android uygulamasını derler: expo prebuild ile yerel proje üretilir, Gradle ile APK ve AAB çıkar,
+# "android-v<sürüm>-<no>" adıyla GitHub Release olarak yayınlanır.
+# İmza: ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASS / ANDROID_KEY_ALIAS / ANDROID_KEY_PASS sırları varsa
+# Google Play yükleme anahtarıyla imzalanır; yoksa test anahtarıyla (Play'e yüklenemez, telefona kurulabilir).
+name: Android derleme
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: android-derleme
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Paketler ve tip kontrolü
+        run: |
+          npm ci
+          npx tsc --noEmit
+      - name: Sürüm numarası
+        run: |
+          # Play'deki eski kabuk uygulama 11'deydi; yeni uygulama 100'den başlar
+          VC=$((100 + ${{ github.run_number }}))
+          VN="$(node -p "require('./app.json').expo.version").${{ github.run_number }}"
+          node -e "const fs=require('fs');const a=require('./app.json');a.expo.android.versionCode=$VC;a.expo.version='$VN';fs.writeFileSync('app.json',JSON.stringify(a,null,2))"
+          echo "VC=$VC" >> "$GITHUB_ENV"; echo "VN=$VN" >> "$GITHUB_ENV"
+      - name: Firebase yapılandırması (varsa)
+        env:
+          GS_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GS_JSON" ]; then echo "$GS_JSON" > google-services.json; node -e "const fs=require('fs');const a=require('./app.json');a.expo.android.googleServicesFile='./google-services.json';fs.writeFileSync('app.json',JSON.stringify(a,null,2))"; else echo "::warning::GOOGLE_SERVICES_JSON yok, telefon bildirimleri bu derlemede çalışmaz"; fi
+      - name: Android projesini üret
+        run: npx expo prebuild --platform android --no-install
+      - name: Derle (APK + AAB)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease bundleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/KankaChat.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/KankaChat.aab"
+      - name: Yükleme anahtarıyla imzala (sır varsa)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          if [ -z "$KS_B64" ]; then echo "::warning::ANDROID_KEYSTORE_B64 yok: test anahtarıyla imzalı, Google Play'e yüklenemez"; exit 0; fi
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/kanka.jks"
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          # AAB: eski imzayı sil, jarsigner ile yeniden imzala
+          cd "$RUNNER_TEMP" && zip -q -d KankaChat.aab 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.MF' || true
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore kanka.jks -storepass "$KS_PASS" -keypass "${KEY_PASS:-$KS_PASS}" KankaChat.aab "$KEY_ALIAS"
+          # APK: apksigner (v2/v3 imza)
+          "$BT/zipalign" -f 4 KankaChat.apk aligned.apk && mv aligned.apk KankaChat.apk
+          "$BT/apksigner" sign --ks kanka.jks --ks-pass "pass:$KS_PASS" --key-pass "pass:${KEY_PASS:-$KS_PASS}" --ks-key-alias "$KEY_ALIAS" KankaChat.apk
+          "$BT/apksigner" verify --print-certs KankaChat.apk | grep -i "SHA-256" || true
+          rm -f kanka.jks
+      - name: Yayınla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-v$VN" --repo "${{ github.repository }}" --prerelease \
+            --title "Kanka Mobil $VN (sürüm kodu $VC)" --notes "Otomatik derleme · ${{ github.sha }}" \
+            "$RUNNER_TEMP/KankaChat.apk" "$RUNNER_TEMP/KankaChat.aab"

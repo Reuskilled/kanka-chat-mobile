@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Yerel derleme klasörleri (CI'da expo prebuild ile üretilir)
+/android
+/ios
