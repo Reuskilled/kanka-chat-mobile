@@ -1,11 +1,12 @@
-import { memo } from 'react';
-import { Pressable, View, Linking } from 'react-native';
+import { memo, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, View, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { C, F } from '@/lib/theme';
 import { abs } from '@/lib/config';
 import { useKanka, react } from '@/lib/kanka';
 import { clock } from '@/lib/time';
-import { encFileOk, isImg, useEncFile, type EncFile } from '@/lib/encfile';
+import { encFileOk, isImg, useEncFile, openEncFile, type EncFile } from '@/lib/encfile';
+import { VoiceNote } from './VoiceNote';
 import type { Msg } from '@/lib/types';
 import { T } from './ui';
 import { Avatar } from './Avatar';
@@ -65,8 +66,8 @@ function Body({ m: m0, me }: { m: Msg; me: string | null }) {
     if (ef.length || x.au) return (
       <View>
         {!!m.text && <RichText text={m.text} me={me} />}
-        {ef.map(f => isImg(f.m) ? <EncImage key={f.i} f={f} /> : <FileCard key={f.i} name={f.n || 'dosya'} note="şifreli dosya · webden açılır" />)}
-        {!!x.au && <FileCard name="Ses mesajı" note="şifreli · yakında mobilde dinlenecek" icon="speaker" />}
+        {ef.map(f => isImg(f.m) ? <EncImage key={f.i} f={f} /> : <EncFileCard key={f.i} f={f} />)}
+        {!!x.au && (encFileOk(x.au) ? <VoiceNote id={m0.id} enc={x.au} dur={Math.min(Math.max(+(x.du || 0), 0), 600)} /> : <FileCard name="Ses mesajı" note="açılamadı" icon="speaker" />)}
       </View>
     );
   }
@@ -79,6 +80,7 @@ function Body({ m: m0, me }: { m: Msg; me: string | null }) {
           {!!m.bot.text && <T style={{ fontSize: 14, lineHeight: 20, color: C.ink2 }}>{m.bot.text.replace(/\*\*/g, '')}</T>}
         </View>
       ) : !!m.text && <RichText text={m.text} me={me} />}
+      {!!m.audio && <VoiceNote id={m.id} src={m.audio} dur={m.duration || 0} />}
       {img && (
         <Pressable accessibilityRole="imagebutton" accessibilityLabel="Görseli aç" onPress={() => Linking.openURL(img)}>
           <Image source={{ uri: img }} style={{ marginTop: 6, width: 240, height: 170, borderRadius: 14, backgroundColor: C.card }} contentFit="cover" transition={150} />
@@ -96,17 +98,27 @@ function Body({ m: m0, me }: { m: Msg; me: string | null }) {
 }
 
 const fmtSize = (n: number) => (n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
-function FileCard({ name, note, onPress, icon = 'file' }: { name: string; note?: string; onPress?: () => void; icon?: string }) {
+function FileCard({ name, note, onPress, icon = 'file', busy }: { name: string; note?: string; onPress?: () => void; icon?: string; busy?: boolean }) {
   return (
     <Pressable accessibilityRole={onPress ? 'link' : undefined} onPress={onPress} disabled={!onPress}
       style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineStrong, maxWidth: 290 }}>
-      <Icon name={icon} size={20} color={C.accent} />
+      {busy ? <ActivityIndicator size="small" color={C.accent} /> : <Icon name={icon} size={20} color={C.accent} />}
       <View style={{ flex: 1, minWidth: 0 }}>
         <T numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 14 }}>{name}</T>
         {!!note && <T numberOfLines={1} style={{ fontSize: 12, color: C.muted }}>{note}</T>}
       </View>
     </Pressable>
   );
+}
+// Şifreli dosya: dokununca cihazda çözülür ve telefonun uygun uygulamasıyla açılır
+function EncFileCard({ f }: { f: EncFile }) {
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    if (busy) return; setBusy(true);
+    try { await openEncFile(f); } catch (e: any) { Alert.alert('Dosya açılamadı', e?.message || 'Bir şeyler ters gitti, tekrar dene.'); }
+    setBusy(false);
+  };
+  return <FileCard name={f.n || 'dosya'} note={`${f.s ? fmtSize(f.s) + ' · ' : ''}şifreli · açmak için dokun`} onPress={open} busy={busy} icon="lock" />;
 }
 function EncImage({ f }: { f: EncFile }) {
   const { url, failed } = useEncFile(f, true);

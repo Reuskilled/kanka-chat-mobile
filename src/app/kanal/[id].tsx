@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { type Att, ask, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
+import { type Att, type Voice, ask, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
 import type { Msg } from '@/lib/types';
 import { dayLabel } from '@/lib/time';
 import { T, IconButton } from '@/components/ui';
@@ -76,6 +76,12 @@ export default function Kanal() {
   const onSend = async (text: string, atts: Att[]) => {
     setErr(null);
     const r = await send(text, reply?.id, atts);
+    if (r.error) { setErr(r.error); return false; }
+    setReply(null); return true;
+  };
+  const onVoice = async (v: Voice) => {
+    setErr(null);
+    const r = await send('', reply?.id, [], v);
     if (r.error) { setErr(r.error); return false; }
     setReply(null); return true;
   };
@@ -163,7 +169,7 @@ export default function Kanal() {
           <IconButton label="Yanıtı iptal et" size={30} onPress={() => setReply(null)}><T style={{ color: C.muted, fontFamily: F.black }}>✕</T></IconButton>
         </View>
       )}
-      <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} />
+      <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} />
 
       <Modal visible={!!menu} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
         <Pressable accessibilityLabel="Kapat" onPress={() => setMenu(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>

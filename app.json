@@ -69,7 +69,15 @@
         }
       ],
       "./plugins/with-voice-service.js",
-      "./plugins/with-proguard.js"
+      "./plugins/with-proguard.js",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Sesli mesaj ve sesli sohbet için mikrofonun kullanılır.",
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

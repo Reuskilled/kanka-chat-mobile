@@ -64,6 +64,8 @@ export type Msg = {
   deleted?: boolean;
   files?: { id?: string; url: string; name?: string; size?: number; kind?: string }[];
   image?: string | null;
+  audio?: string | null;
+  duration?: number;
   gif?: string | null;
   bot?: { title?: string; text?: string; tone?: string };
 };

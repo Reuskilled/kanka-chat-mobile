@@ -8,6 +8,7 @@ import { getItem, setItem, deviceId } from './storage';
 import type { Dm, LoginResult, Msg, Server, User } from './types';
 import { createE2E, rnd, b64, type Inner } from './e2e';
 import { gcm } from '@noble/ciphers/aes.js';
+import { readBytes } from './files';
 
 export type Dec = { inner: Inner } | { bad: true } | { wait: true };
 export type State = {
@@ -220,6 +221,8 @@ export function clearNotice() { set({ notice: null }); }
 // ---- Sohbet ----
 export async function join(chId: string): Promise<{ error?: string }> {
   set({ cur: chId });
+  // Henüz bağlı/girişli değilsek (soğuk açılış, bildirime dokunma, kopma): giriş bitince applyLogin odaya kendisi girer
+  if (!socket?.connected || state.phase !== 'in') return {};
   const r = await ask<{ error?: string; messages?: Msg[] }>('join', chId);
   if (r?.error) return r;
   set(st => ({ msgs: { ...st.msgs, [chId]: r.messages || [] }, more: { ...st.more, [chId]: (r.messages?.length || 0) >= 150 } }));
@@ -238,7 +241,6 @@ export async function loadOlder(chId: string) {
 
 // ---- Dosya yükleme ----
 export type Att = { uri: string; name: string; type: string; size?: number };
-async function bytesOf(uri: string): Promise<Uint8Array> { const r = await fetch(uri); return new Uint8Array(await r.arrayBuffer()); }
 async function postFile(body: Uint8Array, name: string, type: string): Promise<{ id?: string; error?: string }> {
   const t = await getItem(TOKEN); if (!t) return { error: 'Giriş yapmalısın' };
   try {
@@ -247,23 +249,34 @@ async function postFile(body: Uint8Array, name: string, type: string): Promise<{
     return r.ok && j.ok ? { id: j.id } : { error: j.error || 'Dosya yüklenemedi' };
   } catch { return { error: 'Dosya yüklenemedi, bağlantını kontrol et' }; }
 }
-export async function uploadPlain(a: Att) { return postFile(await bytesOf(a.uri), a.name, a.type); }
+export async function uploadPlain(a: Att) { return postFile(await readBytes(a.uri), a.name, a.type); }
 // Şifreli sohbet: dosya cihazda şifrelenir, sunucuya sadece şifreli hâli gider (webdekiyle aynı biçim)
 async function uploadEnc(a: Att) {
-  const plain = await bytesOf(a.uri), k = rnd(32), iv = rnd(12);
+  const plain = await readBytes(a.uri), k = rnd(32), iv = rnd(12);
   const ct = gcm(k, iv).encrypt(plain);
   const r = await postFile(ct, 'sifreli.bin', 'application/octet-stream');
   return r.id ? { meta: { n: a.name.slice(0, 120), m: a.type.slice(0, 80), s: plain.length, k: b64(k), iv: b64(iv), i: r.id } } : { error: r.error };
 }
 
-export async function send(text: string, replyTo?: string | null, atts: Att[] = []): Promise<{ error?: string }> {
+export type Voice = { uri: string; type: string; dur: number };
+// Şifresiz sohbette ses mesajı sitedeki gibi 'upload' ile gider (sunucu türünü doğrular, en çok 5 MB)
+async function uploadVoice(v: Voice): Promise<{ url?: string; error?: string }> {
+  const b = await readBytes(v.uri);
+  if (b.length > 5 * 1024 * 1024) return { error: 'Kayıt çok uzun (en fazla 5 MB)' };
+  const r = await ask<{ url?: string; error?: string }>('upload', { data: `data:${v.type};base64,${b64(b)}` });
+  return r?.url ? { url: r.url } : { error: r?.error || 'Ses yüklenemedi' };
+}
+
+export async function send(text: string, replyTo?: string | null, atts: Att[] = [], voice?: Voice): Promise<{ error?: string }> {
   const ch = state.cur;
   const sendEnc = async () => {
     if (!ch || !state.me) return { error: 'Sohbet açık değil' };
     if (e2e.locked()) return { error: 'Şifreli mesajların kilitli. Önce kilidi aç.' };
     const f = [];
     for (const a of atts) { const u = await uploadEnc(a); if (u.error || !u.meta) return { error: u.error || 'Dosya yüklenemedi' }; f.push(u.meta); }
-    const inner: Inner = { a: state.me, t: text, ...(f.length ? { f } : {}) };
+    let au: unknown = null;
+    if (voice) { const u = await uploadEnc({ uri: voice.uri, name: 'ses', type: voice.type }); if (u.error || !u.meta) return { error: u.error || 'Ses yüklenemedi' }; au = u.meta; }
+    const inner: Inner = { a: state.me, t: text, ...(f.length ? { f } : {}), ...(au ? { au, du: Math.round(voice!.dur) } : {}) };
     const s = await e2e.seal(ch, inner);
     if (!s) return { error: 'Şifreli mesaj hazırlanamadı. Karşı tarafın anahtarı bekleniyor olabilir, biraz sonra tekrar dene.' };
     const r = await ask<{ error?: string; ok?: boolean; msg?: Msg }>('message', { kind: 'text', enc: s.enc, fc: s.fc, ...(replyTo ? { replyTo } : {}) });
@@ -271,6 +284,10 @@ export async function send(text: string, replyTo?: string | null, atts: Att[] = 
     return r;
   };
   const sendPlain = async () => {
+    if (voice) {
+      const u = await uploadVoice(voice); if (!u.url) return { error: u.error };
+      return ask<{ error?: string; ok?: boolean; msg?: Msg; e2e?: boolean }>('message', { kind: 'text', text: '', audio: u.url, duration: Math.round(voice.dur), ...(replyTo ? { replyTo } : {}) });
+    }
     const files: string[] = [];
     for (const a of atts) { const u = await uploadPlain(a); if (u.error || !u.id) return { error: u.error || 'Dosya yüklenemedi' }; files.push(u.id); }
     return ask<{ error?: string; ok?: boolean; msg?: Msg; e2e?: boolean }>('message', { text, ...(files.length ? { files } : {}), ...(replyTo ? { replyTo } : {}) });
