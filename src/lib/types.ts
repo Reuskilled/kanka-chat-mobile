@@ -57,6 +57,7 @@ export type Server = {
   filter?: boolean;
   slow?: number;
   description?: string;
+  energy?: { total: number; level: number };
 };
 export type Role = { id: string; name: string; color?: string; perms?: string[]; hoist?: boolean; bot?: boolean; mention?: boolean };
 

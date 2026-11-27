@@ -78,7 +78,8 @@
         }
       ],
       "expo-sharing",
-      "./plugins/with-screen-share.js"
+      "./plugins/with-screen-share.js",
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true

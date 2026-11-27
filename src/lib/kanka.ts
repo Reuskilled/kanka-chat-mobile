@@ -45,6 +45,7 @@ export type State = {
   vWatch: string | null; // izlediğim ekran yayını
   vVer: number; // görüntü akışları değişince ekranı tazelemek için
   vToast: string | null;
+  minor: boolean;
   e2eLocked: boolean;
   e2eBusy: boolean;
   notice: string | null;
@@ -52,7 +53,7 @@ export type State = {
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, e2eLocked: false, e2eBusy: false, notice: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, e2eLocked: false, e2eBusy: false, notice: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -69,7 +70,10 @@ export function useKanka<T>(pick: (s: State) => T): T {
 let socket: Socket | null = null;
 // Başka modüllerin (ses) sunucu olaylarını dinlemesi için
 const pendingHandlers: [string, (...a: any[]) => void][] = [];
-export function onSocket(ev: string, fn: (...a: any[]) => void) { pendingHandlers.push([ev, fn]); socket?.on(ev, fn); }
+export function onSocket(ev: string, fn: (...a: any[]) => void) {
+  const h: [string, (...a: any[]) => void] = [ev, fn]; pendingHandlers.push(h); socket?.on(ev, fn);
+  return () => { const i = pendingHandlers.indexOf(h); if (i >= 0) pendingHandlers.splice(i, 1); socket?.off(ev, fn); };
+}
 export const socketId = () => socket?.id || null;
 // Oturum açıldıktan (ya da bağlantı geri gelip yeniden doğrulandıktan) sonra çalışacaklar
 export const afterAuth: (() => void)[] = [];
@@ -113,7 +117,7 @@ function applyLogin(r: LoginResult) {
   for (const [n, s] of r.online || []) presence[n] = s;
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
-    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, friends: r.social?.friends || [],
+    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, friends: r.social?.friends || [],
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle

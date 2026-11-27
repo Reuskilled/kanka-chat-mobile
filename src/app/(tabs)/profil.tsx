@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, View, Linking } from 'react-native';
+import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,6 +84,8 @@ export default function Profil() {
         <Row icon="lock" label="Hesap ve güvenlik" onPress={() => web('/app')} />
         <Sep />
         <Row icon="bell" label="Bildirimler" onPress={() => web('/app')} />
+        <Sep />
+        <Row icon="zap" label="Kanka Spark" value={u.sp ? 'Açık' : undefined} onPress={() => router.push('/spark' as any)} />
         <Sep />
         <Row icon="tag" label="Market" value="Yakında" />
       </View>

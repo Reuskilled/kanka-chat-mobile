@@ -26,6 +26,9 @@ export default function SunucuMenu() {
           <Row icon="userAdd" iconColor={C.accent} title="Arkadaşlarını davet et" sub={inviteUrl(s).replace(/^https?:\/\//, '')} onPress={share} last />
         </Section>
       )}
+      <Section>
+        <Row icon="zap" iconColor={C.accent} title="Energy" sub={`Level ${s.energy?.level ?? 0} · toplam ${s.energy?.total ?? 0} Energy`} onPress={() => go('energy')} last />
+      </Section>
       <Section title="Sunucu">
         {can(s, 'manageServer') && <Row icon="settings" title="Genel ayarlar" sub="Ad, simge, küfür filtresi, yavaş mod" onPress={() => go('genel')} />}
         {can(s, 'manageChannels') && <Row icon="hash" title="Odalar ve kategoriler" sub={`${s.channels.length} oda`} onPress={() => go('odalar')} />}

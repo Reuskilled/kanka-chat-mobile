@@ -10,6 +10,7 @@ import { C } from '@/lib/theme';
 import { start, useKanka } from '@/lib/kanka';
 import { listenPush, setupPush } from '@/lib/push';
 import { wireVoice } from '@/lib/voice';
+import { wireSpark } from '@/lib/sparkSync';
 import { IncomingCall } from '@/components/VoiceUI';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -19,7 +20,7 @@ export default function RootLayout() {
   const phase = useKanka(s => s.phase);
   const seg = useSegments();
 
-  useEffect(() => { wireVoice(); start(); return listenPush(); }, []);
+  useEffect(() => { wireVoice(); wireSpark(); start(); return listenPush(); }, []);
   // Giriş yapılınca telefon bildirimlerini aç (ilk seferde izin sorulur)
   useEffect(() => { if (phase === 'in') { const t = setTimeout(() => setupPush(true), 1500); return () => clearTimeout(t); } }, [phase]);
   useEffect(() => { if (fontsOk && phase !== 'boot') SplashScreen.hideAsync().catch(() => {}); }, [fontsOk, phase]);
