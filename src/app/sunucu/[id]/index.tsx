@@ -1,7 +1,7 @@
 import { Alert, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { useKanka } from '@/lib/kanka';
+import { useKanka, useSparkSatis } from '@/lib/kanka';
 import { can, canAdmin, isMod, isOwner, inviteUrl, act } from '@/lib/admin';
 import { Screen, Section, Row, Empty } from '@/components/AdminUI';
 import { T } from '@/components/ui';
@@ -11,6 +11,8 @@ import { C } from '@/lib/theme';
 export default function SunucuMenu() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const s = useKanka(st => st.servers.find(x => x.id === id) || null);
+  const satis = useSparkSatis();
+  const benSpark = useKanka(st => !!st.users[st.me || '']?.sp);
   if (!s) return <Screen title="Sunucu"><Empty text="Bu sunucu artık listende değil." /></Screen>;
   const go = (p: string) => router.push(`/sunucu/${s.id}/${p}` as any);
   const share = async () => { const url = inviteUrl(s); try { await Share.share({ message: `${s.name} sunucusuna gel: ${url}` }); } catch { await Clipboard.setStringAsync(url); Alert.alert('Kopyalandı', url); } };
@@ -26,9 +28,9 @@ export default function SunucuMenu() {
           <Row icon="userAdd" iconColor={C.accent} title="Arkadaşlarını davet et" sub={inviteUrl(s).replace(/^https?:\/\//, '')} onPress={share} last />
         </Section>
       )}
-      <Section>
+      {(satis || benSpark || !!s.energy?.total) && <Section>
         <Row icon="zap" iconColor={C.accent} title="Energy" sub={`Level ${s.energy?.level ?? 0} · toplam ${s.energy?.total ?? 0} Energy`} onPress={() => go('energy')} last />
-      </Section>
+      </Section>}
       <Section title="Sunucu">
         {can(s, 'manageServer') && <Row icon="settings" title="Genel ayarlar" sub="Ad, simge, küfür filtresi, yavaş mod" onPress={() => go('genel')} />}
         {can(s, 'manageChannels') && <Row icon="hash" title="Odalar ve kategoriler" sub={`${s.channels.length} oda`} onPress={() => go('odalar')} />}

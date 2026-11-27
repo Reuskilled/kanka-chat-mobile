@@ -48,6 +48,7 @@ export type State = {
   vVer: number; // görüntü akışları değişince ekranı tazelemek için
   vToast: string | null;
   minor: boolean;
+  magaza: { play: boolean; apple: boolean }; // Spark hangi mağazada satışta (vergi/ürün hazır olunca sunucu açar)
   e2eLocked: boolean;
   e2eBusy: boolean;
   notice: string | null;
@@ -55,11 +56,13 @@ export type State = {
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, e2eLocked: false, e2eBusy: false, notice: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
 // Bağlı ve girişli miyiz: sunucudan veri isteyen ekranlar bunu bekler (soğuk açılışta erken istek boş dönmesin)
+// Spark bu telefonda satılabiliyor mu (satış kapalıyken Spark/Energy girişleri hiç görünmez: mağazalar "yakında" ekranını kabul etmiyor)
+export const useSparkSatis = () => useKanka(s => (Platform.OS === 'ios' ? s.magaza.apple : s.magaza.play));
 export const useReady = () => useKanka(s => s.connected && s.phase === 'in');
 function set(patch: Partial<State> | ((s: State) => Partial<State>)) {
   state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) };
@@ -119,7 +122,7 @@ function applyLogin(r: LoginResult) {
   for (const [n, s] of r.online || []) presence[n] = s;
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
-    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, friends: r.social?.friends || [], blocked: r.social?.blocked || [],
+    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], blocked: r.social?.blocked || [],
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle

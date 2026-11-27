@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ask, displayName, useKanka, useReady } from '@/lib/kanka';
+import { ask, displayName, useKanka, useReady, useSparkSatis } from '@/lib/kanka';
 import { C, F } from '@/lib/theme';
 import { Screen, Section, Row, Empty } from '@/components/AdminUI';
 import { T, Button } from '@/components/ui';
@@ -12,6 +12,7 @@ type EV = { total: number; level: number; next: number | null; levels: number[];
 export default function Energy() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const ready = useReady();
+  const satis = useSparkSatis();
   const s = useKanka(st => st.servers.find(x => x.id === id) || null);
   const [v, setV] = useState<EV | null>(null), [ver, setVer] = useState(0), [busy, setBusy] = useState<string | null>(null), [msg, setMsg] = useState<string | null>(null);
   useEffect(() => { if (!ready) return; let a = true; ask<EV>('energyInfo', { serverId: id }).then(r => { if (a) setV(r); }); return () => { a = false; }; }, [id, ready, ver]);
@@ -42,7 +43,7 @@ export default function Energy() {
               {v.mine > 0 && <Button kind="ghost" title="Geri çek" style={{ flex: 1, height: 46 }} busy={busy === 'pull'} onPress={() => move(true)} />}
             </View>
           </View>
-        ) : <Button kind="ghost" title="Kanka Spark ile Energy gönder" onPress={() => router.push('/spark' as any)} />}
+        ) : satis ? <Button kind="ghost" title="Kanka Spark ile Energy gönder" onPress={() => router.push('/spark' as any)} /> : null}
         {!!msg && <T accessibilityLiveRegion="polite" style={{ fontSize: 13.5, fontFamily: F.bold }}>{msg}</T>}
       </View>
       {v.perks.slice(1).map((p, i) => (

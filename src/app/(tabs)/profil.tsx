@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/lib/theme';
 import { abs, SERVER, APP_VERSION } from '@/lib/config';
-import { fire, logout, useKanka } from '@/lib/kanka';
+import { fire, logout, useKanka, useSparkSatis } from '@/lib/kanka';
 import { T, IconButton } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
@@ -41,6 +41,7 @@ export default function Profil() {
   const pres = useKanka(s => s.presence[s.me || ''] || 'online');
   const friends = useKanka(s => s.friends.length);
   const blockedN = useKanka(s => s.blocked.length);
+  const satis = useSparkSatis();
   if (!u) return null;
   const banner = abs(u.bannerImg);
   const [c1, c2] = u.theme?.length ? u.theme : ['#4c1d95', '#9d174d'];
@@ -86,7 +87,7 @@ export default function Profil() {
         <Sep />
         <Row icon="bell" label="Bildirimler" onPress={() => web('/app')} />
         <Sep />
-        <Row icon="zap" label="Kanka Spark" value={u.sp ? 'Açık' : undefined} onPress={() => router.push('/spark' as any)} />
+        {(satis || !!u.sp) && <Row icon="zap" label="Kanka Spark" value={u.sp ? 'Açık' : undefined} onPress={() => router.push('/spark' as any)} />}
       </View>
       <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, backgroundColor: C.panel, overflow: 'hidden' }}>
         <Row icon="users" label="Engellediklerin" value={blockedN ? String(blockedN) : undefined} onPress={() => router.push('/engellenenler' as any)} />
