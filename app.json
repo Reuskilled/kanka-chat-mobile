@@ -38,7 +38,24 @@
     },
     "ios": {
       "bundleIdentifier": "com.kanka.chat",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "buildNumber": "1",
+      "associatedDomains": [
+        "applinks:kankahq.com"
+      ],
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Sesli odalarda konuşmak, arama yapmak ve sesli mesaj kaydetmek için mikrofonun kullanılır.",
+        "NSCameraUsageDescription": "Görüntülü görüşmede kameranı açmak ve sohbete fotoğraf çekip göndermek için kamera kullanılır.",
+        "NSPhotoLibraryUsageDescription": "Sohbete ya da profiline koymak istediğin fotoğrafı seçebilmen için.",
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "tr"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +63,12 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-font",
       "expo-image",
       [
@@ -61,8 +83,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Sohbete fotoğraf ve video gönderebilmen için galerine erişim gerekiyor.",
-          "cameraPermission": "Sohbete fotoğraf çekip gönderebilmen için kamera izni gerekiyor.",
-          "microphonePermission": "Video çekerken sesi kaydetmek için mikrofon izni gerekiyor."
+          "cameraPermission": "Görüntülü görüşmede kameranı açmak ve sohbete fotoğraf çekip göndermek için kamera kullanılır.",
+          "microphonePermission": "Sesli odalarda konuşmak, arama yapmak ve sesli mesaj kaydetmek için mikrofonun kullanılır."
         }
       ],
       [
@@ -70,15 +92,16 @@
         {
           "icon": "./assets/bildirim-ikonu.png",
           "color": "#D4FF00",
-          "defaultChannel": "mesajlar"
+          "defaultChannel": "mesajlar",
+          "mode": "production"
         }
       ],
       "./plugins/with-stat-icon.js",
       [
         "@config-plugins/react-native-webrtc",
         {
-          "cameraPermission": "Görüntülü görüşme için kamera izni gerekiyor.",
-          "microphonePermission": "Sesli odalarda ve aramalarda konuşabilmen için mikrofon izni gerekiyor."
+          "cameraPermission": "Görüntülü görüşmede kameranı açmak ve sohbete fotoğraf çekip göndermek için kamera kullanılır.",
+          "microphonePermission": "Sesli odalarda konuşmak, arama yapmak ve sesli mesaj kaydetmek için mikrofonun kullanılır."
         }
       ],
       "./plugins/with-voice-service.js",
@@ -86,13 +109,14 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Sesli mesaj ve sesli sohbet için mikrofonun kullanılır.",
+          "microphonePermission": "Sesli odalarda konuşmak, arama yapmak ve sesli mesaj kaydetmek için mikrofonun kullanılır.",
           "enableBackgroundPlayback": false
         }
       ],
       "expo-sharing",
       "./plugins/with-screen-share.js",
-      "expo-iap"
+      "expo-iap",
+      "./plugins/with-ios-signing.js"
     ],
     "experiments": {
       "typedRoutes": true

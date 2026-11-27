@@ -9,7 +9,7 @@ export { RTCPeerConnection, mediaDevices, MediaStream };
 
 // Ön plan hizmeti sesli odadan çıkana kadar açık kalır (görev hiç bitmeyen bir söz döndürür)
 let stopFg: (() => void) | null = null;
-notifee.registerForegroundService(() => new Promise<void>(res => { stopFg = res; }));
+if (Platform.OS === 'android') notifee.registerForegroundService(() => new Promise<void>(res => { stopFg = res; }));
 
 export async function audioStart(speaker: boolean) {
   try { InCallManager.start({ media: 'audio' }); InCallManager.setForceSpeakerphoneOn(speaker); InCallManager.setKeepScreenOn(false); } catch {}

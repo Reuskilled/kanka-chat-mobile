@@ -7,6 +7,8 @@ export type Phase = { price: string; period: string; count: number; free: boolea
 export type Offer = { sku: string; token: string; rec: Phase; intro: Phase | null };
 export type PlayEvent = { kind: 'bought'; token: string } | { kind: 'pending' } | { kind: 'owned' } | { kind: 'error'; msg: string };
 
+export const STORE = { name: 'Google Play', buy: 'playBuy', restore: 'playRestore', one: 'token', many: 'tokens', hazir: 'playHazir', hesap: 'playHesap', aktif: 'play', yenile: 'playYenile', iptal: 'Google Play › Ödemeler ve abonelikler' } as const;
+export async function finish(_token: string) { /* Google Play'de onayı sunucu verir */ }
 export const PLAY_OK = Platform.OS === 'android';
 let conn: Promise<boolean> | null = null;
 const ensure = () => (conn ||= IAP.initConnection().then(() => true, () => { conn = null; return false; }));

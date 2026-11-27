@@ -3,6 +3,8 @@ export type Phase = { price: string; period: string; count: number; free: boolea
 export type Offer = { sku: string; token: string; rec: Phase; intro: Phase | null };
 export type PlayEvent = { kind: 'bought'; token: string } | { kind: 'pending' } | { kind: 'owned' } | { kind: 'error'; msg: string };
 const DEMO = process.env.EXPO_PUBLIC_PLAY_DEMO === '1';
+export const STORE = { name: 'Google Play', buy: 'playBuy', restore: 'playRestore', one: 'token', many: 'tokens', hazir: 'playHazir', hesap: 'playHesap', aktif: 'play', yenile: 'playYenile', iptal: 'Google Play › Ödemeler ve abonelikler' } as const;
+export async function finish(_token: string) {}
 export const PLAY_OK = DEMO;
 let subs: ((e: PlayEvent) => void)[] = [];
 export async function loadOffer(sku: string): Promise<{ offer?: Offer; error?: string }> {

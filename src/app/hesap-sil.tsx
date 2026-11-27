@@ -3,11 +3,12 @@ import { Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { ask, logout, useKanka } from '@/lib/kanka';
 import { SERVER } from '@/lib/config';
+import { STORE } from '@/lib/play';
 import { C, F } from '@/lib/theme';
 import { Screen } from '@/components/AdminUI';
 import { T, Field, Button } from '@/components/ui';
 
-// Google Play kuralı: hesap açılabilen uygulamada hesap silme uygulamanın içinden başlatılabilmeli
+// Google Play ve App Store kuralı: hesap açılabilen uygulamada hesap silme uygulamanın içinden başlatılabilmeli
 export default function HesapSil() {
   const me = useKanka(s => s.me) || '';
   const spark = useKanka(s => !!s.users[me]?.sp);
@@ -28,7 +29,7 @@ export default function HesapSil() {
       <View style={{ padding: 14, borderRadius: 16, backgroundColor: 'rgba(239,68,68,0.1)', gap: 6 }}>
         <T style={{ fontFamily: F.black, fontSize: 15 }}>Silinince neler olur?</T>
         <T style={{ color: C.ink2, lineHeight: 21 }}>• Profilin, ayarların, arkadaş listen ve şifreleme anahtarların silinir.{'\n'}• Yazdığın tüm mesajlar (kanallar ve DM&apos;ler) ve yüklediğin dosyalar silinir.{'\n'}• Sahibi olduğun sunucularda sahiplik en kıdemli yöneticiye geçer; sunucuda başka kimse yoksa sunucu silinir.{'\n'}• Oturumların kapanır, kullanıcı adın serbest kalır.</T>
-        {spark && <T style={{ color: '#fbbf24', fontFamily: F.bold, lineHeight: 20, marginTop: 4 }}>Spark aboneliğin varsa hesabı silmek onu iptal etmez. Önce Google Play › Ödemeler ve abonelikler bölümünden iptal et.</T>}
+        {spark && <T style={{ color: '#fbbf24', fontFamily: F.bold, lineHeight: 20, marginTop: 4 }}>Spark aboneliğin varsa hesabı silmek onu iptal etmez. Önce {STORE.iptal} bölümünden iptal et.</T>}
       </View>
       <Field label="Şifren" value={pw} onChangeText={setPw} secureTextEntry autoComplete="current-password" />
       <Field label={`Onay için kullanıcı adını yaz: ${me}`} value={confirm} onChangeText={setConfirm} autoCapitalize="none" autoCorrect={false} />

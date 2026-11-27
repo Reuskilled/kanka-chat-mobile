@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Pressable, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ask, onSocket, useKanka, useReady } from '@/lib/kanka';
 import { SERVER } from '@/lib/config';
-import { buy, loadOffer, manage, PLAY_OK, type Offer } from '@/lib/play';
+import { buy, loadOffer, manage, PLAY_OK, STORE, type Offer } from '@/lib/play';
 import { SKU, onSparkNote, restoreSpark } from '@/lib/sparkSync';
 import { C, F } from '@/lib/theme';
 import { Screen, Section, Row, Empty } from '@/components/AdminUI';
@@ -12,7 +12,8 @@ import { Icon } from '@/components/Icon';
 
 type Placed = { sid: string; n: number; name: string; level: number; total: number };
 type Me = { active: boolean; until?: number; play?: boolean; playYenile?: boolean | null; energy?: number; free?: number; placed?: Placed[]; months?: number; nextBonusIn?: number;
-  perMonth?: number; bonusEvery?: number; perks?: string[][]; playHazir?: boolean; playHesap?: string; error?: string };
+  perMonth?: number; bonusEvery?: number; perks?: string[][]; playHazir?: boolean; playHesap?: string; error?: string;
+  apple?: boolean; appleYenile?: boolean | null; appleHazir?: boolean; appleHesap?: string };
 const DONEM: Record<string, string> = { P1W: 'hafta', P1M: 'ay', P3M: '3 ay', P6M: '6 ay', P1Y: 'yıl' };
 const donem = (p: string) => DONEM[p] || p;
 const tarih = (t?: number) => (t ? new Date(t).toLocaleDateString('tr-TR') : '');
@@ -46,8 +47,8 @@ export default function Spark() {
     let alive = true;
     ask<Me>('sparkMe', {}).then(async r => {
       if (!alive) return; setM(r);
-      if (!r?.active && r?.playHazir && PLAY_OK) { const o = await loadOffer(SKU); if (alive) { setOffer(o.offer || null); setOffErr(o.error || ''); } }
-      if (!r?.playHazir || !PLAY_OK) ask<{ bekliyor: boolean; sayi: number }>('sparkInfo', {}).then(w => { if (alive && w && !(w as any).error) setWait(w); });
+      if (!r?.active && r?.[STORE.hazir] && PLAY_OK) { const o = await loadOffer(SKU); if (alive) { setOffer(o.offer || null); setOffErr(o.error || ''); } }
+      if (!r?.[STORE.hazir] || !PLAY_OK) ask<{ bekliyor: boolean; sayi: number }>('sparkInfo', {}).then(w => { if (alive && w && !(w as any).error) setWait(w); });
     });
     return () => { alive = false; };
   }, [ready, ver]);
@@ -56,12 +57,13 @@ export default function Spark() {
 
   const canBuy = cayma && (!minor || veli);
   const subscribe = async () => {
-    if (!offer || !m?.playHesap || !canBuy) return;
+    const hesap = m?.[STORE.hesap];
+    if (!offer || !hesap || !canBuy) return;
     setBusy('buy');
-    // Onay, Google Play açılmadan önce tarihiyle sunucuya kaydedilir (cayma hakkı istisnasının ispatı)
+    // Onay, mağazanın ödeme ekranı açılmadan önce tarihiyle sunucuya kaydedilir (cayma hakkı istisnasının ispatı)
     const r = await ask<{ ok?: boolean; error?: string }>('sparkOnay', { fiyat: offer.rec.price, donem: offer.rec.period, veli: minor ? true : undefined });
     if (!r?.ok) { setBusy(null); return setNote({ text: r?.error || 'Onay kaydedilemedi, tekrar dene', tone: 'err' }); }
-    try { await buy(offer, m.playHesap); } catch (e: any) { setNote({ text: 'Google Play açılamadı: ' + (e?.message || e), tone: 'err' }); }
+    try { await buy(offer, hesap); } catch (e: any) { setNote({ text: `${STORE.name} açılamadı: ` + (e?.message || e), tone: 'err' }); }
     setBusy(null);
   };
   const energy = async (sid: string, pull: boolean) => {
@@ -105,16 +107,16 @@ export default function Spark() {
           {m.active ? (
             <>
               <T accessibilityRole="header" style={{ fontFamily: F.black, fontSize: 22 }}>Spark&apos;ın açık</T>
-              <T style={{ color: C.ink2, lineHeight: 21 }}>{m.play ? (m.playYenile === false ? `Aboneliğin iptal edildi; ${tarih(m.until)} tarihine kadar açık kalır.` : `Google Play üzerinden otomatik yenilenir. Sonraki yenileme: ${tarih(m.until)}`) : `${tarih(m.until)} tarihine kadar açık.`}</T>
+              <T style={{ color: C.ink2, lineHeight: 21 }}>{m[STORE.aktif] ? (m[STORE.yenile] === false ? `Aboneliğin iptal edildi; ${tarih(m.until)} tarihine kadar açık kalır.` : `${STORE.name} üzerinden otomatik yenilenir. Sonraki yenileme: ${tarih(m.until)}`) : `${tarih(m.until)} tarihine kadar açık.`}</T>
               <T style={{ color: C.ink2 }}>Boşta <T style={{ fontFamily: F.black }}>{m.free}</T> Energy&apos;n var · toplam {m.energy}{m.nextBonusIn ? ` · ${m.nextBonusIn} ay sonra bonus` : ''}</T>
-              {m.play && <Button kind="ghost" title="Aboneliği yönet / iptal et" onPress={() => manage(SKU)} />}
+              {m[STORE.aktif] && <Button kind="ghost" title="Aboneliği yönet / iptal et" onPress={() => manage(SKU)} />}
             </>
           ) : !PLAY_OK ? (
             <>
               <T accessibilityRole="header" style={{ fontFamily: F.black, fontSize: 22 }}>Kanka Spark</T>
-              <T style={{ color: C.ink2, lineHeight: 21 }}>Spark aboneliği şimdilik Android uygulamasından alınabiliyor. iPhone için hazırlanıyor.</T>
+              <T style={{ color: C.ink2, lineHeight: 21 }}>Spark aboneliği telefon uygulamasından (Android ya da iPhone) alınabiliyor.</T>
             </>
-          ) : !m.playHazir ? (
+          ) : !m[STORE.hazir] ? (
             <>
               <T accessibilityRole="header" style={{ fontFamily: F.black, fontSize: 22 }}>Çok yakında</T>
               <T style={{ color: C.ink2, lineHeight: 21 }}>Abonelik birazdan bu ekrandan açılacak. Açılınca haber verelim mi?</T>
@@ -124,14 +126,14 @@ export default function Spark() {
           ) : !offer ? (
             <>
               <T accessibilityRole="header" style={{ fontFamily: F.black, fontSize: 22 }}>Kanka Spark</T>
-              {offErr ? <T style={{ color: C.ink2, lineHeight: 21 }}>Abonelik bilgisi Google Play&apos;den alınamadı ({offErr}). İnternetini ve Google Play oturumunu kontrol edip tekrar dene.</T> : <ActivityIndicator color={C.accent} />}
+              {offErr ? <T style={{ color: C.ink2, lineHeight: 21 }}>Abonelik bilgisi {STORE.name}&apos;dan alınamadı ({offErr}). İnternetini ve {STORE.name} oturumunu kontrol edip tekrar dene.</T> : <ActivityIndicator color={C.accent} />}
               {!!offErr && <Button kind="ghost" title="Tekrar dene" onPress={reload} />}
             </>
           ) : (
             <>
               <T accessibilityRole="header" style={{ fontFamily: F.black, fontSize: 22 }}>Kanka Spark</T>
               <T><T style={{ fontFamily: F.black, fontSize: 28, color: C.accent }}>{rec!.price}</T><T style={{ color: C.muted, fontSize: 16 }}> / {donem(rec!.period)}</T></T>
-              {intro && <T style={{ color: C.ink2, fontSize: 13.5, lineHeight: 19 }}>{intro.free ? `İlk ${donem(intro.period)}${intro.count > 1 ? ` × ${intro.count}` : ''} ücretsiz` : `İlk ${intro.count > 1 ? intro.count + ' ' : ''}${donem(intro.period)} ${intro.price}`}, sonra {rec!.price} / {donem(rec!.period)}. Uygunluğu Google Play belirler.</T>}
+              {intro && <T style={{ color: C.ink2, fontSize: 13.5, lineHeight: 19 }}>{intro.free ? `İlk ${donem(intro.period)}${intro.count > 1 ? ` × ${intro.count}` : ''} ücretsiz` : `İlk ${intro.count > 1 ? intro.count + ' ' : ''}${donem(intro.period)} ${intro.price}`}, sonra {rec!.price} / {donem(rec!.period)}. Uygunluğu {STORE.name} belirler.</T>}
             </>
           )}
         </LinearGradient>
@@ -141,13 +143,13 @@ export default function Spark() {
         <View style={{ gap: 6 }}>
           <View style={{ padding: 12, borderRadius: 14, backgroundColor: C.card, gap: 4 }}>
             <T style={{ fontFamily: F.black, fontSize: 13.5 }}>Ön bilgilendirme</T>
-            <T style={{ fontSize: 12.5, lineHeight: 18, color: C.muted }}>Hizmet: Kanka Spark dijital abonelik · Fiyat: {offer.rec.price} / {donem(offer.rec.period)} (vergiler dahil, Google Play&apos;in gösterdiği tutar) · Ödeme Google Play üzerinden alınır · Hizmet ödeme onaylanınca anında açılır · İptal etmediğin sürece otomatik yenilenir.</T>
+            <T style={{ fontSize: 12.5, lineHeight: 18, color: C.muted }}>Hizmet: Kanka Spark dijital abonelik · Fiyat: {offer.rec.price} / {donem(offer.rec.period)} (vergiler dahil, {STORE.name}&apos;un gösterdiği tutar) · Ödeme {STORE.name} üzerinden alınır · Hizmet ödeme onaylanınca anında açılır · İptal etmediğin sürece otomatik yenilenir.</T>
             <T onPress={() => Linking.openURL(KOSUL)} style={{ fontSize: 12.5, color: '#7dd3fc', textDecorationLine: 'underline' }}>Ön bilgilendirme metninin tamamı</T>
           </View>
           {minor && <Check on={veli} onChange={setVeli}>18 yaşından küçüğüm, bu satın alma için <T style={{ fontFamily: F.black }}>velimin izni var</T>.</Check>}
           <Check on={cayma} onChange={setCayma}>Ön bilgilendirme koşullarını okudum. Hizmetin <T style={{ fontFamily: F.black }}>hemen başlamasını onaylıyorum</T> ve bu nedenle <T style={{ fontFamily: F.black }}>cayma hakkımı kaybedeceğimi</T> biliyorum.</Check>
           <Button title="Abone ol" icon={<Icon name="zap" size={18} color={C.onAccent} />} busy={busy === 'buy'} disabled={!canBuy} onPress={subscribe} />
-          <T style={{ fontSize: 12, lineHeight: 17, color: C.faint }}>Ödeme Google Play hesabından alınır. Abonelik, iptal etmediğin sürece her {donem(offer.rec.period)} aynı ücretle otomatik yenilenir. İstediğin zaman Google Play › Ödemeler ve abonelikler bölümünden iptal edebilirsin; iptal edersen dönem sonuna kadar Spark açık kalır. Kanka hesabını silmek aboneliği iptal etmez.</T>
+          <T style={{ fontSize: 12, lineHeight: 17, color: C.faint }}>Ödeme {STORE.name} hesabından alınır. Abonelik, iptal etmediğin sürece her {donem(offer.rec.period)} aynı ücretle otomatik yenilenir. İstediğin zaman {STORE.iptal} bölümünden iptal edebilirsin; iptal edersen dönem sonuna kadar Spark açık kalır. Kanka hesabını silmek aboneliği iptal etmez.</T>
         </View>
       )}
 
@@ -168,7 +170,7 @@ export default function Spark() {
         {perks.map(([ic, b, t], i) => <Row key={b} icon={ic} iconColor={C.accent} title={b} sub={t} last={i === perks.length - 1} />)}
       </Section>
       <T style={{ fontSize: 12.5, color: C.muted, paddingHorizontal: 4 }}>Sohbet, sesli odalar, aramalar ve botlar Spark olmadan da tamamen ücretsiz.</T>
-      {PLAY_OK && <Button kind="ghost" title="Satın alımları geri yükle" onPress={() => { setNote({ text: 'Google Play\'e soruluyor…', tone: 'info' }); restoreSpark(true); }} />}
+      {PLAY_OK && <Button kind="ghost" title="Satın alımları geri yükle" onPress={() => { setNote({ text: `${STORE.name}'a soruluyor…`, tone: 'info' }); restoreSpark(true); }} />}
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, padding: 8 }}>
         <T accessibilityRole="link" onPress={() => Linking.openURL(`${SERVER}/kosullar`)} style={{ color: C.muted, fontSize: 13, textDecorationLine: 'underline' }}>Kullanım şartları</T>
         <T accessibilityRole="link" onPress={() => Linking.openURL(`${SERVER}/gizlilik`)} style={{ color: C.muted, fontSize: 13, textDecorationLine: 'underline' }}>Gizlilik politikası</T>

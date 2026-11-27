@@ -1,8 +1,9 @@
 // Sesli odalar ve aramalar. Webdekiyle aynı yapı: odadaki herkes birbirine doğrudan bağlanır (WebRTC, P2P),
 // sunucu sadece bağlantı bilgilerini iletir ('signal'). Arama = "call:<sohbet>" adlı sesli oda + 'ring' bildirimi.
 // Bağlantı kurma "kibar/kaba" kuralıyla (perfect negotiation): iki taraf aynı anda teklif yaparsa kimliği küçük olan geri çekilir.
-import { AppState, Vibration } from 'react-native';
+import { Alert, AppState, Vibration } from 'react-native';
 import { ask, fire, getState, type State, onSocket, setVoice, socketId, findChannel, displayName, dmPeers, afterAuth } from './kanka';
+import { router } from 'expo-router';
 import { RTCPeerConnection, mediaDevices, MediaStream, audioStart, audioStop, setSpeaker, bgStart, bgStop, webPlay, webStop } from './rtc';
 
 type PC = any; // RTCPeerConnection (react-native-webrtc ya da tarayıcı)
@@ -209,6 +210,15 @@ export function toggleDeaf() { const d = !st().deaf; setVoice({ deaf: d }); appl
 export function toggleSpeaker() { const s = !st().speaker; setVoice({ speaker: s }); setSpeaker(s); }
 
 // ---- Aramalar ----
+// Arama bildirimine dokunuldu: arayan hâlâ hatdaysa aramaya katıl, kapattıysa haber ver
+export async function joinCallFromPush(chatId: string) {
+  stopRing();
+  const r = await joinVoice('call:' + chatId);
+  if (r.error) { Alert.alert('Aramaya katılamadın', r.error); return; }
+  if (!Object.keys(peers).length) { leaveVoice(); Alert.alert('Arama bitmiş', 'İstersen sen geri arayabilirsin.'); return; }
+  router.push('/ses');
+}
+
 export async function startCall(chatId: string, video = false) {
   const r = await joinVoice('call:' + chatId);
   if (r.error) return r;
