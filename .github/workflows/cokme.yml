@@ -1,0 +1,44 @@
+name: Çökme testi (emülatör)
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/cokme.yml']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Son APK'yı indir
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          TAG=$(gh release list -R ${{ github.repository }} -L 20 --json tagName,createdAt -q 'sort_by(.createdAt)|reverse|map(select(.tagName|startswith("android-v")))[0].tagName')
+          echo "sürüm: $TAG"; gh release download "$TAG" -R ${{ github.repository }} -p KankaChat.apk
+      - name: Emülatörde aç ve kaydı al
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb install -r KankaChat.apk
+            adb logcat -c
+            adb shell monkey -p com.kanka.chat -c android.intent.category.LAUNCHER 1
+            sleep 25
+            adb shell pidof com.kanka.chat && echo "UYGULAMA AYAKTA" || echo "UYGULAMA KAPANDI"
+            adb logcat -d -b crash > crash.txt || true
+            adb logcat -d '*:E' > errors.txt || true
+            adb logcat -d -s ReactNativeJS:V ReactNative:V AndroidRuntime:V > rn.txt || true
+            echo "===== CRASH ====="; cat crash.txt | head -150
+            echo "===== RN ====="; tail -80 rn.txt
+            echo "===== E ====="; grep -iE "kanka|fatal|exception|caused by" errors.txt | head -80
+            adb exec-out screencap -p > ekran.png || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: cokme, path: '*.txt
+ekran.png' }
