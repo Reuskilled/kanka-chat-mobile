@@ -10,6 +10,8 @@ import { getState, type Att, type Voice } from '@/lib/kanka';
 import { fmtDur } from './VoiceNote';
 import { T, IconButton } from './ui';
 import { Icon } from './Icon';
+import { Avatar } from './Avatar';
+import type { AppCmd } from '@/lib/types';
 
 const MAX = 25 * 1024 * 1024;
 // Konuşma için yeterli kalite, küçük dosya (5 dakika ≈ 2,4 MB)
@@ -18,8 +20,8 @@ const REC_MAX = 300;
 const extOf = (mime: string) => (mime.split('/')[1] || 'bin').replace('jpeg', 'jpg');
 
 // Mesaj yazma alanı: metin + fotoğraf/dosya ekleme (en çok 10), gönderirken yükleme göstergesi
-export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secure }: {
-  placeholder: string; bottom: number; secure?: boolean;
+export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secure, cmds, onCmd }: {
+  placeholder: string; bottom: number; secure?: boolean; cmds?: AppCmd[]; onCmd?: (c: AppCmd) => void;
   onSend: (text: string, atts: Att[]) => Promise<boolean>; onVoice?: (v: Voice) => Promise<boolean>; onTyping: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -89,17 +91,41 @@ export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secur
 
   const go = async () => {
     const t = text.trim(); if ((!t && !atts.length) || busy) return;
+    const cm = /^\/([\p{L}\p{N}_-]+)(?::\S+)?$/u.exec(t); // tam komut adı yazıp gönderdiyse komutu aç
+    const hit = cm && !atts.length ? cmds?.find(c => c.ad === cm[1].toLocaleLowerCase('tr')) : null;
+    if (hit && onCmd) { setText(''); onCmd(hit); return; }
     setBusy(true);
     const ok = await onSend(t, atts);
     setBusy(false);
     if (ok) { setText(''); setAtts([]); setWarn(null); }
   };
   const can = !!(text.trim() || atts.length) && !busy;
+  // "/" yazınca botların komutları listelenir
+  const slash = /^\/[\p{L}\p{N}_-]*$/u.test(text) && !!cmds?.length && !!onCmd ? text.slice(1).toLocaleLowerCase('tr') : null;
+  const cmdList = slash === null ? [] : cmds!.filter(c => c.ad.startsWith(slash) || c.ad.includes(slash)).slice(0, 25);
   const mic = !!onVoice && !text.trim() && !atts.length;
 
   return (
     <View>
       {!!warn && <T style={{ paddingHorizontal: 18, paddingBottom: 6, fontSize: 13, color: '#f87171', fontFamily: F.bold }}>{warn}</T>}
+      {cmdList.length > 0 && (
+        <View style={{ marginHorizontal: 10, marginBottom: 4, maxHeight: 260, borderRadius: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineStrong, overflow: 'hidden' }}>
+          <T style={{ fontSize: 11.5, fontFamily: F.black, color: C.muted, letterSpacing: 0.6, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 }}>BOT KOMUTLARI</T>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {cmdList.map(c => (
+              <Pressable key={c.app + c.ad} accessibilityRole="button" accessibilityLabel={`/${c.ad} komutu, ${c.bot}`} onPress={() => { setText(''); onCmd!(c); }}
+                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: pressed ? C.hover : 'transparent' })}>
+                <Avatar name={c.bot} size={28} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <T numberOfLines={1} style={{ fontFamily: F.heavy, fontSize: 14.5 }}>/{c.ad} {c.secenekler.map(o => <T key={o.ad} style={{ fontSize: 12.5, color: C.faint }}>{o.zorunlu ? `<${o.ad}> ` : `[${o.ad}] `}</T>)}</T>
+                  <T numberOfLines={1} style={{ fontSize: 12.5, color: C.muted }}>{c.aciklama || c.bot}</T>
+                </View>
+                <T style={{ fontSize: 11.5, color: C.faint }}>{c.bot}</T>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
       {atts.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 10, paddingTop: 6 }}>
           {atts.map((a, i) => (

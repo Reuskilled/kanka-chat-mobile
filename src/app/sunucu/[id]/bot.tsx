@@ -47,7 +47,7 @@ export default function KankaBot() {
           {KURALLAR.map(([k, t, sub], i) => <ToggleRow key={k} title={t} sub={sub} value={!!m[k]} disabled={!!busy} onChange={v => set(k, v)} last={i === KURALLAR.length - 1} />)}
         </Section>
       )}
-      <T style={{ fontSize: 12.5, color: C.faint }}>Yasaklı kelimeler, kayıt odası, karşılama ve destek modülleri webdeki Sunucu ayarları › Kanka Bot'ta.</T>
+      <T style={{ fontSize: 12.5, color: C.faint }}>Yasaklı kelimeler, kayıt odası, karşılama ve destek modülleri webdeki Sunucu ayarları › Kanka Bot’ta.</T>
     </Screen>
   );
 }

@@ -9,6 +9,7 @@ import { Sheet, Row } from './AdminUI';
 import { T, Button } from './ui';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { BotBadge } from './BotParts';
 
 // Engelle / şikayet et düğmeleri (üye listesindeki kartta da kullanılır)
 export function SafetyActions({ name, onDone }: { name: string; onDone?: () => void }) {
@@ -52,16 +53,30 @@ export function UserSheet() {
   const blocked = useKanka(s => !!name && s.blocked.includes(name));
   const close = () => openUser(null);
   if (!name) return null;
+  const bot = u?.bot ? (typeof u.bot === 'object' ? u.bot : {}) as { dogrulandi?: boolean; sahip?: string | null } : name === 'Kanka Bot' ? { dogrulandi: true, sahip: null } : null;
   return (
     <Sheet open onClose={close}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Avatar name={name} size={60} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <T numberOfLines={1} style={{ fontFamily: F.black, fontSize: 20 }}>{u?.displayName || name}</T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <T numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.black, fontSize: 20 }}>{u?.displayName || name}</T>
+            {bot && <BotBadge verified={!!bot.dogrulandi} />}
+          </View>
           <T style={{ color: C.muted }}>@{name}{u?.pronouns ? ' · ' + u.pronouns : ''}{blocked ? ' · engelledin' : ''}</T>
         </View>
       </View>
       {!!(u?.status || u?.bio) && <View style={{ padding: 12, borderRadius: 12, backgroundColor: C.card }}><T style={{ color: C.ink2 }}>{u?.status || u?.bio}</T></View>}
+      {bot && (
+        <View style={{ padding: 12, borderRadius: 12, backgroundColor: C.card, gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name={bot.dogrulandi ? 'check' : 'zap'} size={16} color={bot.dogrulandi ? C.online : C.muted} />
+            <T style={{ flex: 1, fontFamily: F.heavy }}>{name === 'Kanka Bot' ? 'Kanka\'nın resmi botu' : bot.dogrulandi ? 'Doğrulanmış bot' : 'Henüz doğrulanmamış bot'}</T>
+          </View>
+          {!!bot.sahip && <T style={{ fontSize: 13.5, color: C.muted }}>Geliştirici: <T style={{ fontSize: 13.5, fontFamily: F.heavy, color: C.ink2 }} onPress={() => openUser(bot.sahip!)}>@{bot.sahip}</T></T>}
+          <T style={{ fontSize: 12.5, color: C.faint }}>Botların komutlarını mesaj kutusuna / yazarak görebilirsin.</T>
+        </View>
+      )}
       {name !== me && !blocked && <Button title="Mesaj gönder" icon={<Icon name="chat" size={18} color={C.onAccent} />} onPress={() => { close(); router.push({ pathname: '/kanal/[id]', params: { id: dmIdWith(me || '', name) } }); }} />}
       {name !== me && <SafetyActions name={name} onDone={close} />}
     </Sheet>

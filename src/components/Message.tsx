@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Pressable, View, Linking } from 'react-native
 import { Image } from 'expo-image';
 import { C, F } from '@/lib/theme';
 import { abs } from '@/lib/config';
-import { useKanka, react, openUser } from '@/lib/kanka';
+import { useKanka, react, openUser, displayName } from '@/lib/kanka';
 import { clock } from '@/lib/time';
 import { encFileOk, isImg, useEncFile, openEncFile, type EncFile } from '@/lib/encfile';
 import { VoiceNote } from './VoiceNote';
@@ -12,6 +12,7 @@ import type { Msg } from '@/lib/types';
 import { T } from './ui';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { BotBadge, CompRows, EmbedCard, EphFooter } from './BotParts';
 
 // Mesaj metni: @bahsetmeler vurgulu, linkler tıklanır
 function RichText({ text, me }: { text: string; me: string | null }) {
@@ -49,7 +50,7 @@ function Reactions({ m, me }: { m: Msg; me: string | null }) {
   );
 }
 
-function Body({ m: m0, me }: { m: Msg; me: string | null }) {
+function Body({ m: m0, me, chId }: { m: Msg; me: string | null; chId?: string }) {
   const dec = useKanka(s => (m0.enc ? s.dec[m0.id] : undefined));
   const locked = useKanka(s => s.e2eLocked);
   if (m0.deleted) return <T style={{ fontSize: 14, color: C.faint, fontStyle: 'italic' }}>Bu mesaj silindi</T>;
@@ -76,10 +77,19 @@ function Body({ m: m0, me }: { m: Msg; me: string | null }) {
   const img = abs(m.image || (typeof m.gif === 'string' ? m.gif : (m.gif as any)?.url));
   return (
     <View>
-      {m.kind === 'bot' && m.bot ? (
-        <View style={{ marginTop: 2, padding: 12, borderRadius: 12, backgroundColor: C.card, borderLeftWidth: 3, borderLeftColor: m.bot.tone === 'good' ? C.online : m.bot.tone === 'warn' ? C.idle : C.accent, gap: 4 }}>
+      {m.kind === 'bot' && m.bot ? (m.bot.plain ? (!!m.bot.text && <RichText text={m.bot.text.replace(/\*\*/g, '')} me={me} />) : (
+        <View style={{ marginTop: 2, padding: 12, borderRadius: 12, backgroundColor: C.card, borderLeftWidth: 3, borderLeftColor: m.bot.tone === 'good' ? C.online : m.bot.tone === 'warn' ? C.idle : m.bot.tone === 'bad' || m.bot.tone === 'danger' ? C.danger : C.accent, gap: 4 }}>
           {!!m.bot.title && <T style={{ fontFamily: F.black, fontSize: 15 }}>{m.bot.title}</T>}
-          {!!m.bot.text && <T style={{ fontSize: 14, lineHeight: 20, color: C.ink2 }}>{m.bot.text.replace(/\*\*/g, '')}</T>}
+          {!!m.bot.text && <T selectable style={{ fontSize: 14, lineHeight: 20, color: C.ink2 }}>{m.bot.text.replace(/\*\*/g, '')}</T>}
+          {!!m.bot.fields?.length && (
+            <View style={{ gap: 6, marginTop: 4 }}>
+              {m.bot.fields.map(([k, v], i) => <View key={i}><T style={{ fontSize: 12, fontFamily: F.black, color: C.muted }}>{k}</T><T style={{ fontSize: 14, color: C.ink2 }}>{v}</T></View>)}
+            </View>
+          )}
+        </View>
+      )) : m.loading ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+          <ActivityIndicator size="small" color={C.muted} /><T style={{ fontSize: 14, color: C.muted, fontStyle: 'italic' }}>düşünüyor…</T>
         </View>
       ) : !!m.text && <RichText text={m.text} me={me} />}
       {!!m.audio && <VoiceNote id={m.id} src={m.audio} dur={m.duration || 0} />}
@@ -95,6 +105,9 @@ function Body({ m: m0, me }: { m: Msg; me: string | null }) {
       ) : (
         <FileCard key={i} name={f.name || 'dosya'} note={f.size ? fmtSize(f.size) : undefined} onPress={() => { const u = abs(f.url); if (u) Linking.openURL(u); }} />
       ))}
+      {(m.embeds || []).map((e, i) => <EmbedCard key={'e' + i} e={e} />)}
+      {!!m.comps?.length && <CompRows m={m} chId={chId || m.channelId || ''} />}
+      {m.ephemeral && <EphFooter m={m} chId={chId || m.channelId || ''} />}
     </View>
   );
 }
@@ -160,7 +173,7 @@ function SysRow({ m }: { m: Msg }) {
   );
 }
 
-export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head: boolean; onLong: (m: Msg) => void }) {
+export const Message = memo(function Message({ m, head, onLong, chId }: { m: Msg; head: boolean; onLong: (m: Msg) => void; chId?: string }) {
   const me = useKanka(s => s.me);
   const u = useKanka(s => (m.author ? s.users[m.author] : undefined));
   const repDec = useKanka(s => (m.replyTo?.enc ? s.dec[m.replyTo.id] : undefined));
@@ -171,7 +184,7 @@ export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head
   if (m.kind === 'system' || m.kind === 'daily' || m.kind === 'call') return <SysRow m={m} />;
   const author = m.author || 'Kanka Bot';
   const name = u?.displayName || author;
-  const person = !!m.author && m.author !== me && m.kind !== 'bot';
+  const person = !!m.author && m.author !== me && m.kind !== 'bot'; // geliştirici botlarının da profili açılır (bot bilgisi)
   if (blocked && !showB) return (
     <Pressable accessibilityRole="button" accessibilityLabel="Engellediğin kişinin mesajı, göstermek için dokun" onPress={() => setShowB(true)} style={{ paddingHorizontal: 64, paddingVertical: 4 }}>
       <T style={{ fontSize: 12.5, color: C.faint, fontStyle: 'italic' }}>Engellediğin kişinin mesajı · göster</T>
@@ -182,6 +195,12 @@ export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head
       style={({ pressed }) => ({ flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingTop: head ? 12 : 2, paddingBottom: 2, backgroundColor: pressed ? 'rgba(255,255,255,0.03)' : 'transparent' })}>
       <View style={{ width: 40 }}>{head && (person ? <Pressable accessibilityRole="button" accessibilityLabel={`${name} profilini aç`} onPress={() => openUser(author)}><Avatar name={author} size={40} /></Pressable> : <Avatar name={author} size={40} />)}</View>
       <View style={{ flex: 1, minWidth: 0 }}>
+        {m.inter && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <Avatar name={m.inter.user} size={16} />
+            <T numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: C.muted }}><T style={{ fontSize: 12.5, fontFamily: F.heavy, color: C.ink2 }}>{displayName(m.inter.user)}</T> /{m.inter.cmd || ''} kullandı</T>
+          </View>
+        )}
         {m.replyTo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <Icon name="reply" size={13} color={C.muted} />
@@ -193,11 +212,12 @@ export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head
         {head && (
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
             <T numberOfLines={1} onPress={person ? () => openUser(author) : undefined} style={{ flexShrink: 1, fontFamily: F.black, fontSize: 15, color: m.color || u?.color || C.ink }}>{name}</T>
+            {(m.app || u?.bot || m.kind === 'bot') && <BotBadge verified={m.kind === 'bot' || !!m.appInfo?.dogrulandi || (typeof u?.bot === 'object' && !!u.bot.dogrulandi)} />}
             <T style={{ fontSize: 11.5, color: C.faint }}>{clock(m.time)}</T>
             {!!m.edited && <T style={{ fontSize: 11, color: C.faint }}>(düzenlendi)</T>}
           </View>
         )}
-        <Body m={m} me={me} />
+        <Body m={m} me={me} chId={chId} />
         <Reactions m={m} me={me} />
       </View>
     </Pressable>

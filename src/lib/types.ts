@@ -16,7 +16,7 @@ export type User = {
   bannerImg?: string | null;
   activities?: { name?: string; type?: string; detail?: string }[];
   sp?: number | null; // Spark
-  bot?: boolean;
+  bot?: boolean | { app?: string; dogrulandi?: boolean; sahip?: string | null }; // geliştirici botu: uygulama bilgisi
   gizli?: boolean;
 };
 
@@ -59,10 +59,22 @@ export type Server = {
   description?: string;
   energy?: { total: number; level: number };
   bot?: BotCfg;
+  appCmds?: AppCmd[]; // sunucudaki botların / komutları
 };
 export type BotMod = { on?: boolean; antinuke?: boolean; spam?: boolean; invites?: boolean; links?: boolean; mentions?: boolean; caps?: boolean; words?: string };
 export type BotCfg = { added?: boolean; mod?: BotMod };
 export type Role = { id: string; name: string; color?: string; perms?: string[]; hoist?: boolean; bot?: boolean; mention?: boolean };
+
+// Geliştirici botları: komut, kart (embed), bileşen (buton / seçim / kişi-rol-oda seçici), form
+export type AppOpt = { ad: string; aciklama?: string; tur: string; zorunlu?: boolean; secimler: { ad: string; deger: string | number }[] };
+export type AppCmd = { app: string; bot: string; ad: string; aciklama?: string; secenekler: AppOpt[] };
+export type Embed = { baslik?: string; aciklama?: string; renk?: string | null; url?: string | null; alanlar?: { ad: string; deger: string; satir?: boolean }[]; resim?: string | null; kucukResim?: string | null; altyazi?: string };
+export type Comp = {
+  tur: 'buton' | 'secim' | 'kisi' | 'rol' | 'oda'; id?: string; stil?: string; etiket?: string; emoji?: string | null; url?: string; kapali?: boolean;
+  yerTutucu?: string; min?: number; max?: number; odaTuru?: string; secenekler?: { etiket: string; deger: string; aciklama?: string | null; emoji?: string | null }[];
+};
+export type AppFormField = { id: string; etiket: string; tur: 'kisa' | 'uzun' | 'dosya' | 'kisi' | 'rol' | 'oda'; kabul?: string; zorunlu?: boolean; yerTutucu?: string; deger?: string; min?: number; max?: number };
+export type AppForm = { iid: string; app: string; bot: string; baslik: string; alanlar: AppFormField[] };
 
 export type Dm = { id: string; with?: string; name?: string; members?: string[]; last?: number };
 
@@ -83,7 +95,16 @@ export type Msg = {
   audio?: string | null;
   duration?: number;
   gif?: string | null;
-  bot?: { title?: string; text?: string; tone?: string };
+  bot?: { title?: string; text?: string; tone?: string; fields?: [string, string][]; plain?: boolean };
+  app?: string; // geliştirici botunun mesajı
+  appInfo?: { id: string; ad: string; gorunenAd?: string; dogrulandi?: boolean };
+  embeds?: Embed[];
+  comps?: Comp[][];
+  ephemeral?: boolean; // sadece sen görüyorsun
+  kalici?: boolean;
+  loading?: boolean; // bot düşünüyor…
+  inter?: { user: string; cmd?: string };
+  channelId?: string;
 };
 
 export type LoginResult = {
@@ -100,5 +121,9 @@ export type LoginResult = {
   ageGate?: 'need' | 'locked' | 'u15' | null;
   minor?: boolean;
   lastMsg?: Record<string, number>;
+  prefs?: Prefs | null;
   social?: { friends?: string[]; reqIn?: string[]; reqOut?: string[]; blocked?: string[] };
 };
+
+// Hesapta saklanan tercihler (her cihazda aynı). Sunucuya gönderirken hepsi birlikte gider, yoksa eksik alanlar silinir.
+export type Prefs = { notif?: boolean; muted?: string[]; ch?: Record<string, 'all' | 'none'>; srv?: Record<string, { lvl?: string; ev?: number; rol?: number }>; order?: string[]; muteUntil?: Record<string, number>; emoji?: unknown };
