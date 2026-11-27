@@ -9,6 +9,7 @@ import { Screen, Section, Row, Sheet, ToggleRow, Chips, Dot } from '@/components
 import { T, Button } from '@/components/ui';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
+import { SafetyActions } from '@/components/UserSheet';
 
 const TIMEOUTS: [number, string][] = [[1, '1 dk'], [5, '5 dk'], [10, '10 dk'], [60, '1 saat'], [1440, '1 gün'], [10080, '1 hafta']];
 const left = (t: number) => { const m = Math.max(1, Math.round((t - Date.now()) / 60e3)); return m < 60 ? `${m} dk` : m < 1440 ? `${Math.round(m / 60)} saat` : `${Math.round(m / 1440)} gün`; };
@@ -109,6 +110,7 @@ function MemberSheet({ s, name, onClose }: { s: Server; name: string | null; onC
       )}
       {canAny && !s.public && can(s, 'kick') && <Button kind="danger" title="Sunucudan at" busy={busy === 'kick'} onPress={kick} />}
       {canAny && !s.public && can(s, 'ban') && <Button kind="danger" title="Yasakla" busy={busy === 'ban'} onPress={ban} />}
+      {!self && <SafetyActions name={name} onDone={onClose} />}
     </Sheet>
   );
 }

@@ -16,7 +16,7 @@ import { startCall } from '@/lib/voice';
 import { Alert } from 'react-native';
 import { can, isMod } from '@/lib/admin';
 
-const REASONS: [string, string][] = [['spam', 'Spam ya da reklam'], ['taciz', 'Taciz veya zorbalık'], ['nefret', 'Nefret söylemi'], ['cinsel', 'Cinsel içerik'], ['siddet', 'Şiddet ya da tehdit'], ['dolandir', 'Dolandırıcılık'], ['cocuk', 'Çocuk güvenliği'], ['diger', 'Diğer']];
+import { REASONS } from '@/lib/report';
 
 const QUICK = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 const EMPTY: Msg[] = [];

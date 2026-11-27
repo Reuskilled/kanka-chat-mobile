@@ -40,6 +40,7 @@ export default function Profil() {
   const u = useKanka(s => s.meUser);
   const pres = useKanka(s => s.presence[s.me || ''] || 'online');
   const friends = useKanka(s => s.friends.length);
+  const blockedN = useKanka(s => s.blocked.length);
   if (!u) return null;
   const banner = abs(u.bannerImg);
   const [c1, c2] = u.theme?.length ? u.theme : ['#4c1d95', '#9d174d'];
@@ -90,7 +91,18 @@ export default function Profil() {
         <Row icon="tag" label="Market" value="Yakında" />
       </View>
       <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, backgroundColor: C.panel, overflow: 'hidden' }}>
+        <Row icon="users" label="Engellediklerin" value={blockedN ? String(blockedN) : undefined} onPress={() => router.push('/engellenenler' as any)} />
+        <Sep />
+        <Row icon="lock" label="Gizlilik politikası" onPress={() => web('/gizlilik')} />
+        <Sep />
+        <Row icon="file" label="Kullanım şartları" onPress={() => web('/kosullar')} />
+        <Sep />
+        <Row icon="chat" label="Destek ve iletişim" onPress={() => web('/destek')} />
+      </View>
+      <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, backgroundColor: C.panel, overflow: 'hidden' }}>
         <Row icon="logout" label="Çıkış yap" danger onPress={logout} />
+        <Sep />
+        <Row icon="trash" label="Hesabı sil" danger onPress={() => router.push('/hesap-sil' as any)} />
       </View>
       <T style={{ textAlign: 'center', color: C.faint, fontSize: 12, marginTop: 14 }}>Kanka Chat {APP_VERSION}</T>
     </ScrollView>

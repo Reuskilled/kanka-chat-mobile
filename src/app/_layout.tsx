@@ -12,6 +12,7 @@ import { listenPush, setupPush } from '@/lib/push';
 import { wireVoice } from '@/lib/voice';
 import { wireSpark } from '@/lib/sparkSync';
 import { IncomingCall } from '@/components/VoiceUI';
+import { UserSheet } from '@/components/UserSheet';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -44,6 +45,7 @@ export default function RootLayout() {
         <Stack.Screen name="ses" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       {phase === 'in' && <IncomingCall />}
+      {phase === 'in' && <UserSheet />}
       {(!fontsOk || phase === 'boot') && (
         <View style={{ position: 'absolute', inset: 0, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.accent} /></View>
       )}

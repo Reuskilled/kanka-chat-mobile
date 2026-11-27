@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Pressable, View, Linking } from 'react-native
 import { Image } from 'expo-image';
 import { C, F } from '@/lib/theme';
 import { abs } from '@/lib/config';
-import { useKanka, react } from '@/lib/kanka';
+import { useKanka, react, openUser } from '@/lib/kanka';
 import { clock } from '@/lib/time';
 import { encFileOk, isImg, useEncFile, openEncFile, type EncFile } from '@/lib/encfile';
 import { VoiceNote } from './VoiceNote';
@@ -164,15 +164,23 @@ export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head
   const me = useKanka(s => s.me);
   const u = useKanka(s => (m.author ? s.users[m.author] : undefined));
   const repDec = useKanka(s => (m.replyTo?.enc ? s.dec[m.replyTo.id] : undefined));
+  const blocked = useKanka(s => !!m.author && s.blocked.includes(m.author));
+  const [showB, setShowB] = useState(false);
   const repText = m.replyTo?.enc ? (repDec && 'inner' in repDec ? String(repDec.inner.t || 'Dosya') : 'Şifreli mesaj') : m.replyTo?.text;
   if (!m.author && m.kind !== 'bot') return <SysRow m={m} />;
   if (m.kind === 'system' || m.kind === 'daily' || m.kind === 'call') return <SysRow m={m} />;
   const author = m.author || 'Kanka Bot';
   const name = u?.displayName || author;
+  const person = !!m.author && m.author !== me && m.kind !== 'bot';
+  if (blocked && !showB) return (
+    <Pressable accessibilityRole="button" accessibilityLabel="Engellediğin kişinin mesajı, göstermek için dokun" onPress={() => setShowB(true)} style={{ paddingHorizontal: 64, paddingVertical: 4 }}>
+      <T style={{ fontSize: 12.5, color: C.faint, fontStyle: 'italic' }}>Engellediğin kişinin mesajı · göster</T>
+    </Pressable>
+  );
   return (
     <Pressable onLongPress={() => onLong(m)} delayLongPress={300} accessibilityHint="Seçenekler için basılı tut"
       style={({ pressed }) => ({ flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingTop: head ? 12 : 2, paddingBottom: 2, backgroundColor: pressed ? 'rgba(255,255,255,0.03)' : 'transparent' })}>
-      <View style={{ width: 40 }}>{head && <Avatar name={author} size={40} />}</View>
+      <View style={{ width: 40 }}>{head && (person ? <Pressable accessibilityRole="button" accessibilityLabel={`${name} profilini aç`} onPress={() => openUser(author)}><Avatar name={author} size={40} /></Pressable> : <Avatar name={author} size={40} />)}</View>
       <View style={{ flex: 1, minWidth: 0 }}>
         {m.replyTo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
@@ -184,7 +192,7 @@ export const Message = memo(function Message({ m, head, onLong }: { m: Msg; head
         )}
         {head && (
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-            <T numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.black, fontSize: 15, color: m.color || u?.color || C.ink }}>{name}</T>
+            <T numberOfLines={1} onPress={person ? () => openUser(author) : undefined} style={{ flexShrink: 1, fontFamily: F.black, fontSize: 15, color: m.color || u?.color || C.ink }}>{name}</T>
             <T style={{ fontSize: 11.5, color: C.faint }}>{clock(m.time)}</T>
             {!!m.edited && <T style={{ fontSize: 11, color: C.faint }}>(düzenlendi)</T>}
           </View>

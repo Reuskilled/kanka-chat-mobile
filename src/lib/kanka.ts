@@ -28,6 +28,8 @@ export type State = {
   cur: string | null;
   ageGate: LoginResult['ageGate'];
   friends: string[];
+  blocked: string[];
+  userSheet: string | null; // dokunulan kullanıcının kartı
   dec: Record<string, Dec>; // şifreli mesajların bu cihazda açılmış hâli
   ice: any[];
   vflags: Record<string, Record<string, { m?: boolean; d?: boolean }>>;
@@ -53,7 +55,7 @@ export type State = {
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, e2eLocked: false, e2eBusy: false, notice: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, e2eLocked: false, e2eBusy: false, notice: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -117,7 +119,7 @@ function applyLogin(r: LoginResult) {
   for (const [n, s] of r.online || []) presence[n] = s;
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
-    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, friends: r.social?.friends || [],
+    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, friends: r.social?.friends || [], blocked: r.social?.blocked || [],
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle
@@ -179,7 +181,7 @@ function onEvents(s: Socket) {
   s.on('presenceDiff', ({ set: add = [], del = [] }: { set?: [string, string][]; del?: string[] }) => set(st => {
     const p = { ...st.presence }; for (const [n, v] of add) p[n] = v; for (const n of del) delete p[n]; return { presence: p };
   }));
-  s.on('social', (x: { friends?: string[] }) => set({ friends: x?.friends || [] }));
+  s.on('social', (x: { friends?: string[]; blocked?: string[] }) => set({ friends: x?.friends || [], ...(x?.blocked ? { blocked: x.blocked } : {}) }));
   s.on('voiceState', (voice: Record<string, string[]>) => set({ voice }));
   s.on('voiceFlags', (vflags: State['vflags']) => set({ vflags: vflags || {} }));
   s.on('ice', (ice: any[]) => set({ ice: ice || [] }));
@@ -325,6 +327,12 @@ export async function send(text: string, replyTo?: string | null, atts: Att[] = 
   return r?.error ? { error: r.error } : {};
 }
 export const react = (msgId: string, emoji: string) => fire('react', { msgId, emoji });
+export const openUser = (name: string | null) => set({ userSheet: name });
+export async function blockUser(name: string, on: boolean) {
+  const r = await ask<{ error?: string }>('block', { name, on });
+  if (!r?.error) set(st => ({ blocked: on ? [...new Set([...st.blocked, name])] : st.blocked.filter(x => x !== name), friends: on ? st.friends.filter(x => x !== name) : st.friends }));
+  return r?.error || null;
+}
 export const delMsg = (msgId: string) => fire('delete', msgId);
 export const pinMsg = (msgId: string) => fire('pin', msgId);
 let lastTyping = 0;
