@@ -114,6 +114,7 @@ export default function Ses() {
           </View>
           <T style={{ fontSize: 12, color: C.online, fontFamily: F.bold }}>{status} · {people.length} kişi</T>
         </View>
+        {!isCall && <IconButton label="Arena oyunları" onPress={() => router.push({ pathname: '/arena' as any, params: { ch } })}><Icon name="game" size={22} color={C.muted} /></IconButton>}
         {!isCall && <IconButton label="Oda sohbeti" onPress={() => router.push({ pathname: '/kanal/[id]', params: { id: ch } })}><Icon name="chat" size={21} color={C.muted} /></IconButton>}
       </View>
       <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12 }}>

@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { router } from 'expo-router';
 import { ActivityIndicator, Alert, Pressable, View, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { C, F } from '@/lib/theme';
@@ -71,6 +72,7 @@ function Body({ m: m0, me }: { m: Msg; me: string | null }) {
       </View>
     );
   }
+  if (m.kind === 'arena' && (m as any).arena) return <ArenaCard a={(m as any).arena} ch={(m as any).channelId} />;
   const img = abs(m.image || (typeof m.gif === 'string' ? m.gif : (m.gif as any)?.url));
   return (
     <View>
@@ -127,6 +129,23 @@ function EncImage({ f }: { f: EncFile }) {
     <View style={{ marginTop: 6, width: 240, height: 180, borderRadius: 14, backgroundColor: C.card, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
       {url ? <Image source={{ uri: url }} style={{ width: 240, height: 180 }} contentFit="cover" accessibilityLabel={f.n || 'Şifreli resim'} /> : <Icon name="lock" size={20} color={C.faint} />}
     </View>
+  );
+}
+
+// Arena lobisi davet kartı (odada oyun açılınca sohbete düşer)
+function ArenaCard({ a }: { a: { id: string; ad: string; emoji: string; max: number; state: string; players: string[]; winner?: string | null; draw?: boolean; gone?: boolean }; ch?: string }) {
+  const st = a.gone && a.state !== 'end' ? 'Lobi kapandı' : a.state === 'lobby' ? `Oyuncu bekliyor · ${a.players.length}/${a.max}` : a.state === 'play' ? 'Oyun sürüyor' : a.state === 'end' ? (a.draw ? 'Berabere bitti' : `${a.winner} kazandı 🏆`) : 'Kapandı';
+  const live = !a.gone && a.state !== 'closed';
+  return (
+    <Pressable accessibilityRole={live ? 'button' : undefined} accessibilityLabel={`${a.ad} lobisi, ${st}${live ? ', açmak için dokun' : ''}`} disabled={!live} onPress={() => router.push({ pathname: '/arena' as any, params: { lobi: a.id } })}
+      style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: live ? 'rgba(212,255,0,0.35)' : C.lineStrong, maxWidth: 320 }}>
+      <T style={{ fontSize: 30 }}>{a.emoji}</T>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T style={{ fontFamily: F.black, fontSize: 15 }}>{a.ad}</T>
+        <T numberOfLines={1} style={{ fontSize: 12.5, color: C.muted }}>{st}</T>
+      </View>
+      {live && a.state === 'lobby' && <View style={{ paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: C.accent, justifyContent: 'center' }}><T style={{ color: C.onAccent, fontFamily: F.black, fontSize: 13 }}>Katıl</T></View>}
+    </Pressable>
   );
 }
 
