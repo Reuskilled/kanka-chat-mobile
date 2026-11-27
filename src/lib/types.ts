@@ -58,7 +58,10 @@ export type Server = {
   slow?: number;
   description?: string;
   energy?: { total: number; level: number };
+  bot?: BotCfg;
 };
+export type BotMod = { on?: boolean; antinuke?: boolean; spam?: boolean; invites?: boolean; links?: boolean; mentions?: boolean; caps?: boolean; words?: string };
+export type BotCfg = { added?: boolean; mod?: BotMod };
 export type Role = { id: string; name: string; color?: string; perms?: string[]; hoist?: boolean; bot?: boolean; mention?: boolean };
 
 export type Dm = { id: string; with?: string; name?: string; members?: string[]; last?: number };

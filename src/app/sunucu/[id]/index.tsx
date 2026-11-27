@@ -36,7 +36,8 @@ export default function SunucuMenu() {
         {can(s, 'manageChannels') && <Row icon="hash" title="Odalar ve kategoriler" sub={`${s.channels.length} oda`} onPress={() => go('odalar')} />}
         {can(s, 'manageRoles') && <Row icon="tag" title="Roller" sub={`${(s.customRoles || []).length} rol`} onPress={() => go('roller')} />}
         <Row icon="users" title="Üyeler" sub={isMod(s) ? 'Rol ver, sustur, at, yasakla' : 'Sunucudaki herkes'} onPress={() => go('uyeler')} last={!can(s, 'manageServer')} />
-        {can(s, 'manageServer') && !s.public && <Row icon="userAdd" title="Davet linkleri" sub="Süreli ya da sınırlı link oluştur" onPress={() => go('davetler')} last />}
+        {can(s, 'manageServer') && !s.public && <Row icon="userAdd" title="Davet linkleri" sub="Süreli ya da sınırlı link oluştur" onPress={() => go('davetler')} />}
+        {can(s, 'manageServer') && <Row icon="lock" title="Kanka Bot" sub={s.bot?.mod?.on ? `Koruma açık${s.bot.mod.spam ? ' · spam koruması açık' : ''}` : s.bot?.added ? 'Koruma kapalı' : 'Spam koruması, anti-nuke, filtreler'} onPress={() => go('bot')} last />}
       </Section>
       {admin && (
         <Section title="Moderasyon">
