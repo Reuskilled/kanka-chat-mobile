@@ -87,8 +87,6 @@ export default function Profil() {
         <Row icon="bell" label="Bildirimler" onPress={() => web('/app')} />
         <Sep />
         <Row icon="zap" label="Kanka Spark" value={u.sp ? 'Açık' : undefined} onPress={() => router.push('/spark' as any)} />
-        <Sep />
-        <Row icon="tag" label="Market" value="Yakında" />
       </View>
       <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, backgroundColor: C.panel, overflow: 'hidden' }}>
         <Row icon="users" label="Engellediklerin" value={blockedN ? String(blockedN) : undefined} onPress={() => router.push('/engellenenler' as any)} />

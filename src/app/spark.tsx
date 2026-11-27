@@ -169,7 +169,10 @@ export default function Spark() {
       </Section>
       <T style={{ fontSize: 12.5, color: C.muted, paddingHorizontal: 4 }}>Sohbet, sesli odalar, aramalar ve botlar Spark olmadan da tamamen ücretsiz.</T>
       {PLAY_OK && <Button kind="ghost" title="Satın alımları geri yükle" onPress={() => { setNote({ text: 'Google Play\'e soruluyor…', tone: 'info' }); restoreSpark(true); }} />}
-      <Pressable onPress={() => Linking.openURL(`${SERVER}/kosullar`)} accessibilityRole="link" style={{ alignSelf: 'center', padding: 8 }}><T style={{ color: C.faint, fontSize: 12.5 }}>Kullanım Şartları ve Gizlilik webde: kankahq.com/kosullar</T></Pressable>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, padding: 8 }}>
+        <T accessibilityRole="link" onPress={() => Linking.openURL(`${SERVER}/kosullar`)} style={{ color: C.muted, fontSize: 13, textDecorationLine: 'underline' }}>Kullanım şartları</T>
+        <T accessibilityRole="link" onPress={() => Linking.openURL(`${SERVER}/gizlilik`)} style={{ color: C.muted, fontSize: 13, textDecorationLine: 'underline' }}>Gizlilik politikası</T>
+      </View>
     </Screen>
   );
 }

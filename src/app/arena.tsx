@@ -153,9 +153,8 @@ export default function Arena() {
             }) : <Empty text="Bu odada açık lobi yok. Aşağıdan bir oyun seç." />}
           </Section>
           <Section title="Yeni oyun aç">
-            {Object.entries(GAMES).map(([k, g], i, a) => (
-              <Row key={k} left={<T style={{ fontSize: 26 }}>{g.e}</T>} title={g.ad} sub={g.mobile ? `${g.d} · ${g.n}` : `${g.n} · telefonda yakında (webden oynanır)`} last={i === a.length - 1}
-                onPress={g.mobile ? () => create(k) : undefined} />
+            {Object.entries(GAMES).filter(([, g]) => g.mobile).map(([k, g], i, a) => (
+              <Row key={k} left={<T style={{ fontSize: 26 }}>{g.e}</T>} title={g.ad} sub={`${g.d} · ${g.n}`} last={i === a.length - 1} onPress={() => create(k)} />
             ))}
           </Section>
           {myVoice !== ch && <Pressable onPress={() => joinVoice(ch)} style={{ alignSelf: 'center', padding: 8 }}><T style={{ color: C.accent, fontFamily: F.heavy }}>Oynamak için bu sesli odaya gir</T></Pressable>}
