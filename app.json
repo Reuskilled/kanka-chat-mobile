@@ -44,7 +44,7 @@
         "applinks:kankahq.com"
       ],
       "config": {
-        "usesNonExemptEncryption": false
+        "usesNonExemptEncryption": true
       },
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Sesli odalarda konuşmak, arama yapmak ve sesli mesaj kaydetmek için mikrofonun kullanılır.",
@@ -53,7 +53,7 @@
         "UIBackgroundModes": [
           "audio"
         ],
-        "ITSAppUsesNonExemptEncryption": false,
+        "ITSAppUsesNonExemptEncryption": true,
         "CFBundleDevelopmentRegion": "tr"
       },
       "privacyManifests": {
