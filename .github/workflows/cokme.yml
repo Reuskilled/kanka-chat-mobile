@@ -23,7 +23,8 @@ jobs:
           TAG=$(gh api "repos/${{ github.repository }}/releases?per_page=30" -q '[.[]|select(.tag_name|startswith("android-v"))]|sort_by(.created_at)|reverse|.[0].tag_name')
           echo "sürüm: $TAG"; gh release download "$TAG" -R ${{ github.repository }} -p KankaChat.aab
           curl -sSLo bundletool.jar https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
-          java -jar bundletool.jar build-apks --bundle=KankaChat.aab --output=k.apks --mode=universal
+          keytool -genkeypair -keystore t.jks -storepass android -keypass android -alias t -keyalg RSA -keysize 2048 -validity 30 -dname CN=test >/dev/null
+          java -jar bundletool.jar build-apks --ks=t.jks --ks-pass=pass:android --ks-key-alias=t --key-pass=pass:android --bundle=KankaChat.aab --output=k.apks --mode=universal
           unzip -o -q k.apks universal.apk && mv universal.apk KankaChat.apk && ls -la KankaChat.apk
       - name: Emülatörde aç ve kaydı al
         uses: reactivecircus/android-emulator-runner@v2
