@@ -11,6 +11,7 @@ const P: Record<string, (c: string) => React.ReactNode> = {
   back: () => <Path d="m15 18-6-6 6-6" />,
   chevron: () => <Path d="m9 6 6 6-6 6" />,
   down: () => <Path d="m6 9 6 6 6-6" />,
+  up: () => <Path d="m6 15 6-6 6 6" />,
   plus: () => <Path d="M12 5v14M5 12h14" />,
   send: () => <Path d="M5 12h14M13 6l6 6-6 6" />,
   smile: () => (<><Circle cx={12} cy={12} r={9} /><Path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" /></>),

@@ -13,6 +13,7 @@ import { wireVoice } from '@/lib/voice';
 import { wireSpark } from '@/lib/sparkSync';
 import { IncomingCall } from '@/components/VoiceUI';
 import { UserSheet } from '@/components/UserSheet';
+import { AppFormSheet } from '@/components/BotParts';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -46,6 +47,7 @@ export default function RootLayout() {
       </Stack>
       {phase === 'in' && <IncomingCall />}
       {phase === 'in' && <UserSheet />}
+      {phase === 'in' && <AppFormSheet />}
       {(!fontsOk || phase === 'boot') && (
         <View style={{ position: 'absolute', inset: 0, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.accent} /></View>
       )}

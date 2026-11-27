@@ -5,7 +5,7 @@ import { AppState, Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { SERVER, PROTOCOL, APP_VERSION } from './config';
 import { getItem, setItem, deviceId } from './storage';
-import type { Dm, LoginResult, Msg, Server, User } from './types';
+import type { AppCmd, AppForm, Dm, LoginResult, Msg, Prefs, Server, User } from './types';
 import { createE2E, rnd, b64, type Inner } from './e2e';
 import { gcm } from '@noble/ciphers/aes.js';
 import { readBytes } from './files';
@@ -52,11 +52,13 @@ export type State = {
   e2eLocked: boolean;
   e2eBusy: boolean;
   notice: string | null;
+  prefs: Prefs | null; // hesap tercihleri (sunucu sırası, oda bildirimleri…)
+  appForm: AppForm | null; // botun açtığı form
 };
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -122,7 +124,7 @@ function applyLogin(r: LoginResult) {
   for (const [n, s] of r.online || []) presence[n] = s;
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
-    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], blocked: r.social?.blocked || [],
+    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], blocked: r.social?.blocked || [], prefs: r.prefs || state.prefs,
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle
@@ -188,6 +190,8 @@ function onEvents(s: Socket) {
   s.on('voiceState', (voice: Record<string, string[]>) => set({ voice }));
   s.on('voiceFlags', (vflags: State['vflags']) => set({ vflags: vflags || {} }));
   s.on('ice', (ice: any[]) => set({ ice: ice || [] }));
+  s.on('prefs', (p: Prefs) => p && set({ prefs: p }));
+  s.on('appForm', (f: AppForm) => f?.iid && set({ appForm: f }));
   for (const [ev, fn] of pendingHandlers) s.on(ev, fn);
   s.on('forceLogout', (msg: string) => { setItem(TOKEN, null); set({ phase: 'out', notice: String(msg || 'Oturumun kapatıldı.'), cur: null, msgs: {} }); });
 }
@@ -349,3 +353,48 @@ export function findChannel(chId: string): { server: Server; channel: Server['ch
   return null;
 }
 export const dmPeers = (chId: string) => chId.replace(/^dm:/, '').split('|');
+
+// ---- Hesap tercihleri ----
+// Sunucu 'prefs'i bütün olarak kaydeder (eksik alan silinir): önce güncelini al, değiştir, hepsini geri gönder
+export async function savePrefs(change: (p: Prefs) => Prefs): Promise<string | null> {
+  const cur = await ask<Prefs & { error?: string }>('prefs', null);
+  if (cur && (cur as any).error) return (cur as any).error;
+  const next = change({ ...(cur || state.prefs || {}) });
+  set({ prefs: next }); // ekranda hemen görünsün
+  const r = await ask<Prefs & { error?: string }>('prefs', next);
+  if (r && !(r as any).error) set({ prefs: r });
+  return (r as any)?.error || null;
+}
+// Sunucu listesi sırası (webdekiyle aynı: hesapta saklanır, listede olmayanlar sona)
+export function orderServers(list: Server[], order?: string[]) {
+  const o = order || [], pos = (id: string) => { const i = o.indexOf(id); return i < 0 ? 1e6 : i; };
+  return list.map((s, i) => [s, i] as const).sort((a, b) => pos(a[0].id) - pos(b[0].id) || a[1] - b[1]).map(x => x[0]);
+}
+export const setServerOrder = (ids: string[]) => savePrefs(p => ({ ...p, order: ids }));
+
+// ---- Geliştirici botları ----
+export async function appComp(chId: string, msgId: string, cid: string, values?: string[]) {
+  const r = await ask<{ error?: string }>('appComp', { chId, msgId, cid, values });
+  return r?.error || null;
+}
+export async function appCmd(chId: string, c: AppCmd, opts: Record<string, unknown>) {
+  const r = await ask<{ error?: string }>('appCmd', { chId, app: c.app, name: c.ad, opts });
+  return r?.error || null;
+}
+export async function appFormSubmit(iid: string, values: Record<string, string>) {
+  const r = await ask<{ error?: string }>('appFormSubmit', { iid, values });
+  if (!r?.error) set({ appForm: null });
+  return r?.error || null;
+}
+export const closeAppForm = () => set({ appForm: null });
+export async function dmAppCmds(bot: string): Promise<AppCmd[]> {
+  const r = await ask<{ komutlar?: AppCmd[] }>('appDmCmds', bot);
+  return r?.komutlar || [];
+}
+// "Sadece sen görüyorsun" mesajını kapat (kalıcı olanı sunucudan da sil)
+export function closeEph(chId: string, m: Msg) {
+  if (m.kalici) fire('ozelKapat', m.id);
+  set(st => { const list = st.msgs[chId]; return list ? { msgs: { ...st.msgs, [chId]: list.filter(x => x.id !== m.id) } } : {}; });
+}
+export const isBot = (u?: User | null) => !!u?.bot;
+export const botVerified = (u?: User | null) => !!u?.bot && typeof u.bot === 'object' && !!u.bot.dogrulandi;

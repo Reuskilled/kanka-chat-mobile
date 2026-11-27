@@ -4,8 +4,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { type Att, type Voice, ask, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
-import type { Msg } from '@/lib/types';
+import { type Att, type Voice, ask, dmAppCmds, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
+import type { AppCmd, Msg } from '@/lib/types';
 import { dayLabel } from '@/lib/time';
 import { T, IconButton } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -17,6 +17,8 @@ import { Alert } from 'react-native';
 import { can, isMod } from '@/lib/admin';
 
 import { REASONS } from '@/lib/report';
+import { MembersPanel, SearchPanel } from '@/components/ChannelPanels';
+import { CmdSheet } from '@/components/BotParts';
 
 const QUICK = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 const EMPTY: Msg[] = [];
@@ -41,6 +43,9 @@ export default function Kanal() {
   const [upw, setUpw] = useState('');
   const [ubusy, setUbusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [panel, setPanel] = useState<'uyeler' | 'ara' | null>(null);
+  const [cmd, setCmd] = useState<AppCmd | null>(null);
+  const [dmCmds, setDmCmds] = useState<AppCmd[]>([]);
 
   const isDm = id.startsWith('dm:') || id.startsWith('g:');
   const f = useMemo(() => (isDm ? null : findChannel(id)), [id, isDm, servers]);
@@ -48,6 +53,10 @@ export default function Kanal() {
   const title = isDm ? users[other]?.displayName || other || 'Grup sohbeti' : f?.channel.name || 'kanal';
   const secure = isDm && e2e.live(id);
   const needUnlock = isDm && e2eLocked && msgs.some(m => !!m.enc);
+  // Botların / komutları: sunucuda sunucudaki botlarınki, bot DM'inde o botunki
+  const otherIsBot = !!other && !!users[other]?.bot;
+  useEffect(() => { if (otherIsBot) dmAppCmds(other).then(setDmCmds); }, [other, otherIsBot]);
+  const cmds = isDm ? (otherIsBot ? dmCmds : []) : f?.server.appCmds || [];
 
   useEffect(() => {
     let alive = true;
@@ -125,8 +134,8 @@ export default function Kanal() {
           {isDm ? (<>
             <IconButton label="Sesli ara" onPress={async () => { const r = await startCall(id); if (r.error) Alert.alert('Arama başlatılamadı', r.error); else router.push('/ses'); }}><Icon name="phone" size={20} color={C.ink} /></IconButton>
             <IconButton label="Görüntülü ara" onPress={async () => { const r = await startCall(id, true); if (r.error) Alert.alert('Arama başlatılamadı', r.error); else router.push('/ses'); }}><Icon name="video" size={21} color={C.ink} /></IconButton>
-          </>) : <IconButton label="Ara"><Icon name="search" size={20} color={C.muted} /></IconButton>}
-          {!isDm && <IconButton label="Üyeler"><Icon name="users" size={21} color={C.muted} /></IconButton>}
+          </>) : <IconButton label="Mesajlarda ara" onPress={() => setPanel('ara')}><Icon name="search" size={20} color={C.ink} /></IconButton>}
+          {!isDm && <IconButton label="Üyeler" onPress={() => setPanel('uyeler')}><Icon name="users" size={21} color={C.ink} /></IconButton>}
         </View>
       </View>
 
@@ -138,7 +147,7 @@ export default function Kanal() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
             <View style={{ flex: 1, height: 1, backgroundColor: C.line }} /><T style={{ fontSize: 12, color: C.faint, fontFamily: F.heavy }}>{item.label}</T><View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
           </View>
-        ) : <Message m={item.m} head={item.head} onLong={onLong} />}
+        ) : <Message m={item.m} head={item.head} onLong={onLong} chId={id} />}
         onEndReached={() => loadOlder(id)}
         onEndReachedThreshold={0.4}
         contentContainerStyle={{ paddingVertical: 8 }}
@@ -184,7 +193,10 @@ export default function Kanal() {
           <IconButton label="Yanıtı iptal et" size={30} onPress={() => setReply(null)}><T style={{ color: C.muted, fontFamily: F.black }}>✕</T></IconButton>
         </View>
       )}
-      <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} />
+      <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} />
+      <CmdSheet cmd={cmd} chId={id} onClose={() => setCmd(null)} />
+      {f && <MembersPanel s={f.server} open={panel === 'uyeler'} onClose={() => setPanel(null)} />}
+      {!isDm && <SearchPanel chId={id} title={title} open={panel === 'ara'} onClose={() => setPanel(null)} />}
 
       <Modal visible={!!menu} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
         <Pressable accessibilityLabel="Kapat" onPress={() => setMenu(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
