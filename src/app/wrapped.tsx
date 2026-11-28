@@ -53,17 +53,21 @@ export default function Wrapped() {
   const users = useKanka(s => s.users);
   const [d, setD] = useState<any>(null), [err, setErr] = useState<string | null>(null);
   const [i, setI] = useState(0), [p, setP] = useState(0);
-  const paused = useRef(false);
+  const paused = useRef(false), pos = useRef({ i: 0, p: 0 });
   useEffect(() => { if (ready) ask<any>('wrapped', { server: server || undefined, year: year ? Number(year) : defYear() }).then(r => (r?.ok ? setD(r) : setErr(r?.error || 'Özet hazırlanamadı'))); }, [ready, server, year]);
   const slides = d ? slidesOf(d, n => users[n]?.displayName || n) : [];
   const n = slides.length;
   useEffect(() => {
     if (!n) return;
-    const t = setInterval(() => { if (!paused.current) setP(x => Math.min(1, x + 100 / DUR)); }, 100);
+    const t = setInterval(() => {
+      if (paused.current) return;
+      const r = pos.current; r.p = Math.min(1, r.p + 100 / DUR);
+      if (r.p >= 1 && r.i < n - 1) { r.i++; r.p = 0; setI(r.i); }
+      setP(r.p);
+    }, 100);
     return () => clearInterval(t);
   }, [n]);
-  useEffect(() => { if (p >= 1 && i < n - 1) { setI(i + 1); setP(0); } }, [p, i, n]);
-  const go = (n: number) => { setI(Math.max(0, Math.min(slides.length - 1, n))); setP(0); };
+  const go = (k: number) => { const x = Math.max(0, Math.min(slides.length - 1, k)); pos.current = { i: x, p: 0 }; setI(x); setP(0); };
   const share = () => {
     if (!d) return;
     const msg = d.server ? `${d.server.ad} sunucumuzun ${d.year} yılı: ${N(d.msg)} mesaj, ${N(d.ses)} saat ses. Kanka Wrapped 👉 kankahq.com`

@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { type Att, type Voice, ask, dmAppCmds, msgLink, sendKind, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, takeShare, typing, unlockE2E, useKanka, openWelcome } from '@/lib/kanka';
+import { type Att, type Voice, ask, dmAppCmds, msgLink, sendKind, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, takeShare, typing, unlockE2E, useKanka, openWelcome, watchStart } from '@/lib/kanka';
 import type { AppCmd, Msg } from '@/lib/types';
 import { dayLabel } from '@/lib/time';
 import { T, IconButton } from '@/components/ui';
@@ -12,6 +12,7 @@ import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
 import { Message } from '@/components/Message';
 import { Composer } from '@/components/Composer';
+import { WatchPanel } from '@/components/WatchPanel';
 import { startCall } from '@/lib/voice';
 import { Alert } from 'react-native';
 import { can, isMod } from '@/lib/admin';
@@ -121,6 +122,7 @@ export default function Kanal() {
   };
   const menuText = menu ? (menu.enc ? (dec[menu.id] && 'inner' in dec[menu.id] ? String((dec[menu.id] as any).inner.t || '') : '') : menu.text || '') : '';
 
+  const watchX = isDm ? [{ t: 'Birlikte izle', ic: '📺', takesText: true, on: (t: string) => (/youtu/.test(t) || /^[\w-]{11}$/.test(t.trim()) ? watchStart(t.trim()) : Alert.alert('Birlikte izle', 'Önce mesaj kutusuna bir YouTube linki yapıştır, sonra buna dokun.')) }] : [];
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={{ paddingTop: insets.top, backgroundColor: C.panel, borderBottomWidth: 1, borderBottomColor: C.line }}>
@@ -145,6 +147,7 @@ export default function Kanal() {
           {id.startsWith('g:') && <IconButton label="Grup ayarları" onPress={() => setPanel('grup')}><Icon name="settings" size={20} color={C.ink} /></IconButton>}
         </View>
       </View>
+      {isDm && <WatchPanel chId={id} />}
 
       <FlatList
         inverted
@@ -212,13 +215,14 @@ export default function Kanal() {
           <IconButton label="Yanıtı iptal et" size={30} onPress={() => setReply(null)}><T style={{ color: C.muted, fontFamily: F.black }}>✕</T></IconButton>
         </View>
       )}
-      <Composer initial={shared} placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} extras={secure ? [] : [
+      <Composer initial={shared} placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} extras={secure ? watchX : [
         { t: 'GIF', ic: '🎞️', on: () => setPanel('gif') },
         { t: 'Anket', ic: '📊', on: () => setPanel('anket') },
         { t: 'Plan', ic: '🗓️', on: () => setPanel('plan') },
         { t: 'Zar at', ic: '🎲', on: () => sendKind({ kind: 'dice', sides: 6 }).then(e => e && Alert.alert('Olmadı', e)) },
         { t: 'Yazı tura', ic: '🪙', on: () => sendKind({ kind: 'coin' }).then(e => e && Alert.alert('Olmadı', e)) },
         { t: 'XOX', ic: '❌', on: () => sendKind({ kind: 'xox' }).then(e => e && Alert.alert('Olmadı', e)) },
+        ...watchX,
         { t: 'Zamanla', ic: '⏰', takesText: true, on: (t: string) => { setSchedText(t); setPanel('zaman'); } },
       ]} />
       <CmdSheet cmd={cmd} chId={id} onClose={() => setCmd(null)} />

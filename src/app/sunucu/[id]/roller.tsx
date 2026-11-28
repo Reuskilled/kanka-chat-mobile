@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useKanka } from '@/lib/kanka';
 import { act, can, isOwner, PERMS, ROLE_COLORS } from '@/lib/admin';
@@ -12,7 +12,7 @@ import { Icon } from '@/components/Icon';
 export default function Roller() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const s = useKanka(st => st.servers.find(x => x.id === id) || null);
-  const [edit, setEdit] = useState<Role | 'new' | null>(null);
+  const [edit, setEdit] = useState<Role | 'new' | null>(null), [mem, setMem] = useState<Role | null>(null);
   if (!s) return <Screen title="Roller"><Empty text="Sunucu bulunamadı." /></Screen>;
   const roles = s.customRoles || [];
   const count = (rid: string) => Object.values(s.memberRoles || {}).filter(l => l.includes(rid)).length;
@@ -30,12 +30,13 @@ export default function Roller() {
         )) : <Empty text="Henüz rol yok. Sağ üstten ekleyebilirsin." />}
       </View>
       <T style={{ fontSize: 12.5, color: C.faint, paddingHorizontal: 4 }}>Rol simgesi, renk geçişi ve yazı tipi gibi süslemeler webden ayarlanır; burada kaydetmek onları bozmaz.</T>
-      <RoleSheet s={s} role={edit} onClose={() => setEdit(null)} />
+      <RoleSheet s={s} role={edit} onClose={() => setEdit(null)} onMembers={r => { setEdit(null); setTimeout(() => setMem(r), 350); }} />
+      <MembersSheet s={s} role={mem ? roles.find(x => x.id === mem.id) || null : null} onClose={() => setMem(null)} />
     </Screen>
   );
 }
 
-function RoleSheet({ s, role, onClose }: { s: Server; role: Role | 'new' | null; onClose: () => void }) {
+function RoleSheet({ s, role, onClose, onMembers }: { s: Server; role: Role | 'new' | null; onClose: () => void; onMembers: (r: Role) => void }) {
   const r = role === 'new' ? null : role;
   const [name, setName] = useState(''), [color, setColor] = useState(ROLE_COLORS[0]), [perms, setPerms] = useState<string[]>([]), [hoist, setHoist] = useState(false);
   const [busy, setBusy] = useState(false), [key, setKey] = useState<string | null>(null);
@@ -79,7 +80,35 @@ function RoleSheet({ s, role, onClose }: { s: Server; role: Role | 'new' | null;
         </>
       )}
       <Button title={r ? 'Kaydet' : 'Rolü oluştur'} busy={busy} disabled={!name.trim()} onPress={save} />
+      {r && !r.bot && can(s, 'manageRoles') && <Button kind="ghost" title="Bu roldeki üyeler" onPress={() => onMembers(r)} />}
       {r && !r.bot && <Button kind="danger" title="Rolü sil" onPress={del} />}
+    </Sheet>
+  );
+}
+
+// Rolün üyeleri: işaretle → rol verilir, kaldır → alınır
+function MembersSheet({ s, role, onClose }: { s: Server; role: Role | null; onClose: () => void }) {
+  const users = useKanka(st => st.users);
+  const [q, setQ] = useState(''), [busy, setBusy] = useState<string | null>(null);
+  if (!role) return <Sheet open={false} onClose={onClose}>{null}</Sheet>;
+  const has = (n: string) => !!s.memberRoles?.[n]?.includes(role.id);
+  const k = q.trim().toLocaleLowerCase('tr');
+  const list = s.members.filter(n => !users[n]?.bot && (!k || n.toLocaleLowerCase('tr').includes(k) || (users[n]?.displayName || '').toLocaleLowerCase('tr').includes(k)))
+    .sort((a, b) => Number(has(b)) - Number(has(a)));
+  const toggle = async (n: string, v: boolean) => {
+    setBusy(n); const e = await act('roleMembers', { serverId: s.id, roleId: role.id, add: v ? [n] : [], remove: v ? [] : [n] }); setBusy(null);
+    if (e) Alert.alert('Olmadı', e);
+  };
+  return (
+    <Sheet open onClose={onClose} title={`${role.name} · ${s.members.filter(has).length} üye`}>
+      <Field label="Ara" value={q} onChangeText={setQ} autoCapitalize="none" />
+      <ScrollView style={{ maxHeight: 420 }}>
+        <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}>
+          {list.slice(0, 150).map((n, i, a) => (
+            <ToggleRow key={n} title={users[n]?.displayName || n} sub={'@' + n} value={has(n)} disabled={busy === n} onChange={v => toggle(n, v)} last={i === a.length - 1} />
+          ))}
+        </View>
+      </ScrollView>
     </Sheet>
   );
 }

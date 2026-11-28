@@ -7,10 +7,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/lib/theme';
 import { abs } from '@/lib/config';
-import { fire, getState, orderServers, savePrefs, setServerOrder, useKanka } from '@/lib/kanka';
+import { fire, getState, liveInfo, type LiveInfo, orderServers, savePrefs, setServerOrder, useKanka } from '@/lib/kanka';
 import { getItem, setItem } from '@/lib/storage';
 import type { Channel, Server } from '@/lib/types';
-import { T } from '@/components/ui';
+import { T, Button } from '@/components/ui';
 import { joinVoice } from '@/lib/voice';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
@@ -41,6 +41,8 @@ function SrvFace({ s, img, active }: { s: Server; img: string | null; active?: b
 function ChannelRow({ c, active, voiceUsers, onLong }: { c: Channel; active?: boolean; voiceUsers?: string[]; onLong: (c: Channel) => void }) {
   const voice = c.type === 'voice' || c.type === 'stage';
   const n = voiceUsers?.length || 0;
+  const live = useKanka(st => st.vLive[c.id]);
+  const [peek, setPeek] = useState<string | null>(null);
   return (
     <View>
       <Pressable
@@ -62,10 +64,36 @@ function ChannelRow({ c, active, voiceUsers, onLong }: { c: Channel; active?: bo
       </Pressable>
       {n > 0 && (
         <View style={{ flexDirection: 'row', gap: 4, paddingLeft: 36, paddingBottom: 6 }}>
-          {voiceUsers!.slice(0, 8).map(u => <Avatar key={u} name={u} size={26} />)}
+          {voiceUsers!.slice(0, 8).map(u => live?.includes(u) ? (
+            <Pressable key={u} accessibilityRole="button" accessibilityLabel={`${u} yayında, önizle`} onPress={() => setPeek(u)}>
+              <Avatar name={u} size={26} />
+              <View style={{ position: 'absolute', bottom: -4, left: -2, right: -2, alignItems: 'center' }}><T style={{ fontSize: 7.5, fontFamily: F.black, color: '#fff', backgroundColor: '#ef4444', paddingHorizontal: 3, borderRadius: 3, overflow: 'hidden' }}>CANLI</T></View>
+            </Pressable>
+          ) : <Avatar key={u} name={u} size={26} />)}
         </View>
       )}
+      {!!peek && <LivePeek name={peek} ch={c} onClose={() => setPeek(null)} />}
     </View>
+  );
+}
+
+const minsSince = (t: number) => Math.max(1, Math.round((Date.now() - t) / 60e3));
+// Yayın önizlemesi: yayının küçük görüntüsü, kaç kişinin izlediği; "Katıl ve izle"
+function LivePeek({ name, ch, onClose }: { name: string; ch: Channel; onClose: () => void }) {
+  const users = useKanka(s => s.users);
+  const [info, setInfo] = useState<LiveInfo | undefined>(undefined);
+  useEffect(() => { let on = true; const f = () => liveInfo(name, ch.id).then(x => on && setInfo(x)); f(); const t = setInterval(f, 5000); return () => { on = false; clearInterval(t); }; }, [name, ch.id]);
+  const join = async () => { onClose(); const r = await joinVoice(ch.id); if (r.error) Alert.alert('Sesli odaya girilemedi', r.error); else router.push('/ses'); };
+  return (
+    <Sheet open onClose={onClose} title={`${users[name]?.displayName || name} yayında`}>
+      <View style={{ aspectRatio: 16 / 9, borderRadius: 14, backgroundColor: '#000', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+        {info?.thumb ? <Image source={{ uri: info.thumb }} style={{ position: 'absolute', inset: 0 }} contentFit="contain" />
+          : <T style={{ color: C.muted }}>{info === undefined ? 'Yükleniyor…' : info?.locked ? 'Bu odaya girme iznin yok' : 'Önizleme yok'}</T>}
+        <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 }}><T style={{ fontSize: 11, fontFamily: F.black, color: '#fff' }}>CANLI</T></View>
+      </View>
+      <T style={{ color: C.muted }}>🔊 {ch.name}{info?.viewers ? ` · ${info.viewers} izleyici` : ''}{info?.q ? ` · ${info.q}` : ''}{info?.since ? ` · ${minsSince(info.since)} dk` : ''}</T>
+      {!info?.locked && <Button title="Katıl ve izle" onPress={join} />}
+    </Sheet>
   );
 }
 

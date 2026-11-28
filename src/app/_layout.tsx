@@ -17,6 +17,7 @@ import { AppFormSheet } from '@/components/BotParts';
 import { LockScreen } from '@/components/LockScreen';
 import { AccountGates } from '@/components/AccountGates';
 import { WelcomeSheet } from '@/components/WelcomeSheet';
+import { Toast } from '@/components/Toast';
 import { wireLock } from '@/lib/lock';
 import { wireWidget } from '@/widget/sync';
 
@@ -64,6 +65,7 @@ export default function RootLayout() {
       {phase === 'in' && <AppFormSheet />}
       {phase === 'in' && <WelcomeSheet />}
       {phase === 'in' && <AccountGates />}
+      {phase === 'in' && <Toast />}
       {phase === 'in' && <LockScreen />}
       {(!fontsOk || phase === 'boot') && (
         <View style={{ position: 'absolute', inset: 0, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.accent} /></View>

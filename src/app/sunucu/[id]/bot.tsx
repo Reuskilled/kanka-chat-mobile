@@ -33,6 +33,7 @@ export default function KankaBot() {
   const save = (module: string, cfg: object) => run(module + Object.keys(cfg)[0], 'botSave', { serverId: s.id, module, cfg });
   const applyAll = async () => { const r = await ask<{ ok?: boolean; error?: string; n?: number }>('autoRoleAll', { serverId: s.id }); Alert.alert(r?.ok ? 'Tamam' : 'Olmadı', r?.ok ? `${r.n || 0} üyeye rol verildi.` : r?.error || 'Bağlantı yok'); };
   const sendPanel = async () => { const e = await act('ticketPanel', { serverId: s.id, chId: tk.panelCh }); Alert.alert(e ? 'Olmadı' : 'Gönderildi', e || 'Panel mesajı odaya gönderildi.'); };
+  const kick = () => Alert.alert('Kanka Bot’u at', 'Bütün korumalar ve modüller kapanacak. Emin misin?', [{ text: 'Vazgeç', style: 'cancel' }, { text: 'At', style: 'destructive', onPress: () => run('kick', 'botRemove', { serverId: s.id }) }]);
   const set = (k: keyof BotMod, v: boolean) => run(k, 'botSave', { serverId: s.id, module: 'mod', cfg: { [k]: v } });
   if (!b.added) return (
     <Screen title="Kanka Bot" sub={s.name}>
@@ -97,6 +98,9 @@ export default function KankaBot() {
           <ChPick s={s} value={tk.panelCh || null} onChange={v => save('ticket', { panelCh: v })} none="Panel odası seç" />
           <Row icon="send" title="Paneli gönder" sub={tk.panelCh ? 'Seçili odaya “Talep aç” butonlu mesaj atar' : 'Önce bir oda seç'} onPress={tk.panelCh ? sendPanel : undefined} last />
         </>}
+      </Section>
+      <Section hint="Bot sunucudan çıkar, bütün modülleri kapanır ve bot rolü silinir. İstersen sonra tekrar eklersin.">
+        <Row icon="logout" title="Kanka Bot’u sunucudan at" danger onPress={kick} last />
       </Section>
     </Screen>
   );

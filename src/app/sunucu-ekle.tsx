@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { C, F } from '@/lib/theme';
 import { abs } from '@/lib/config';
-import { createServer, invitePeek, inviteCode, joinInvite, selectServer, type InvitePeek } from '@/lib/kanka';
+import { ask, createServer, invitePeek, inviteCode, joinInvite, selectServer, type InvitePeek } from '@/lib/kanka';
 import { Screen, Section, Chips } from '@/components/AdminUI';
 import { T, Field, Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -17,7 +17,9 @@ const TPL: [string, string, string, string][] = [
   ['robrun', 'Rob Run ailesi', 'Patron, Sağ Kol, Tetikçi rolleri; soygun planı ve Sığınak odaları.', 'crown'],
   ['okul', 'Okul / sınıf', 'Ödevler, sınav takvimi, soru-cevap, etüt odası, Öğretmen rolü.', 'file'],
   ['topluluk', 'Topluluk', 'Kurallar, kendini tanıt, öneriler, mod odası ve hoş geldin ekranı.', 'star'],
+  ['discord', 'Discord şablonu', 'discord.new/… linkini yapıştır, odalar ve roller aynen kurulsun.', 'zap'],
 ];
+type DcPrev = { error?: string; name?: string; counts?: { channels: number; categories: number; roles: number }; categories?: { name: string; channels: { name: string }[] }[]; roles?: { name: string; color?: string }[] };
 
 export function ServerPreview({ p }: { p: InvitePeek }) {
   const img = abs(p.iconImg), banner = abs(p.banner);
@@ -57,6 +59,12 @@ export default function SunucuEkle() {
     return () => clearTimeout(t);
   }, [link]);
 
+  const [dc, setDc] = useState(''), [dcp, setDcp] = useState<DcPrev | null>(null);
+  useEffect(() => {
+    if (tpl !== 'discord' || dc.trim().length < 4) return;
+    const t = setTimeout(async () => { const r = await ask<DcPrev>('discordTemplate', dc.trim()); setDcp(r || { error: 'Şablon okunamadı' }); if (r?.name && !name.trim()) setName(r.name.slice(0, 40)); }, 500);
+    return () => clearTimeout(t);
+  }, [dc, tpl]); // eslint-disable-line react-hooks/exhaustive-deps
   const open = (id: string) => { selectServer(id); router.dismissTo('/'); };
   const shown = inviteCode(link) ? peek : undefined;
   const join = async () => {
@@ -68,7 +76,7 @@ export default function SunucuEkle() {
   };
   const create = async () => {
     if (!name.trim()) return Alert.alert('Sunucu adı', 'Sunucuna bir ad ver.');
-    setBusy(true); const r = await createServer({ name: name.trim(), template: tpl }); setBusy(false);
+    setBusy(true); const r = await createServer(tpl === 'discord' ? { name: name.trim(), discord: dc.trim() } : { name: name.trim(), template: tpl }); setBusy(false);
     if (r.error) return Alert.alert('Kurulamadı', r.error);
     open(r.server!.id);
   };
@@ -102,7 +110,17 @@ export default function SunucuEkle() {
               </Pressable>
             ))}
           </Section>
-          <Button title="Sunucuyu kur" busy={busy} onPress={create} />
+          {tpl === 'discord' && <>
+            <Field label="Discord şablon linki" value={dc} onChangeText={setDc} placeholder="discord.new/abc123" autoCapitalize="none" autoCorrect={false} />
+            {dcp?.error ? <T style={{ color: C.danger, paddingHorizontal: 4 }}>{dcp.error}</T> : dcp?.counts ? (
+              <View style={{ padding: 12, borderRadius: 14, backgroundColor: C.card, gap: 4 }}>
+                <T style={{ fontFamily: F.black }}>{dcp.name}</T>
+                <T style={{ fontSize: 13, color: C.muted }}>{dcp.counts.categories} kategori · {dcp.counts.channels} oda · {dcp.counts.roles} rol</T>
+                <T numberOfLines={3} style={{ fontSize: 12.5, color: C.faint }}>{(dcp.categories || []).map(k => `${k.name}: ${k.channels.map(c => c.name).join(', ')}`).join(' · ')}</T>
+              </View>
+            ) : null}
+          </>}
+          <Button title="Sunucuyu kur" busy={busy} disabled={tpl === 'discord' && !dcp?.counts} onPress={create} />
           <T style={{ fontSize: 12.5, color: C.faint, textAlign: 'center' }}>Sunucu kurarak Topluluk Kuralları’nı kabul etmiş olursun.</T>
         </>
       )}
