@@ -65,7 +65,11 @@ export type Server = {
   sounds?: Sound[];
   sbAll?: boolean;
   welcome?: Welcome | null;
+  accepted?: boolean; // hoş geldin ekranı açıksa kuralları kabul etti mi
+  gate?: { questions?: string[]; approval?: boolean } | null;
+  apply?: string | null; // katılım başvurusu durumu: 'bekliyor' | 'onay' | 'red'
 };
+export type SiteWarn = { id: string; at: number; reason: string; count?: number };
 export type Sound = { id: string; name: string; emoji?: string; vol?: number; url: string; by: string; at?: number; sec?: number };
 export type Welcome = { enabled?: boolean; message?: string; rules?: string[]; channels?: { id: string; desc?: string }[] };
 export type BotMod = { on?: boolean; antinuke?: boolean; spam?: boolean; invites?: boolean; links?: boolean; mentions?: boolean; caps?: boolean; words?: string };
@@ -136,6 +140,9 @@ export type LoginResult = {
   dms?: Dm[];
   voice?: Record<string, string[]>;
   ageGate?: 'need' | 'locked' | 'u15' | null;
+  u15?: { son?: string; acilis?: string | null } | null;
+  needVeli?: boolean;
+  warns?: SiteWarn[];
   minor?: boolean;
   lastMsg?: Record<string, number>;
   prefs?: Prefs | null;

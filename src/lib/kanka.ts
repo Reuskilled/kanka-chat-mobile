@@ -5,7 +5,7 @@ import { AppState, Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { SERVER, PROTOCOL, APP_VERSION } from './config';
 import { getItem, setItem, deviceId } from './storage';
-import type { AppCmd, AppForm, Dm, LoginResult, Msg, Prefs, Server, User } from './types';
+import type { SiteWarn, AppCmd, AppForm, Dm, LoginResult, Msg, Prefs, Server, User } from './types';
 import { createE2E, rnd, b64, type Inner } from './e2e';
 import { gcm } from '@noble/ciphers/aes.js';
 import { readBytes } from './files';
@@ -27,6 +27,10 @@ export type State = {
   typing: Record<string, Record<string, number>>; // kanal -> kişi -> zaman
   cur: string | null;
   ageGate: LoginResult['ageGate'];
+  u15: LoginResult['u15'];
+  needVeli: boolean;
+  warns: SiteWarn[];
+  welcomeFor: string | null;
   friends: string[];
   reqIn: string[]; // bana gelen arkadaşlık istekleri
   reqOut: string[]; // benim gönderdiklerim
@@ -63,7 +67,7 @@ export type State = {
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], reqIn: [], reqOut: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, vStage: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null, selServer: null, myEmail: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, u15: null, needVeli: false, warns: [], welcomeFor: null, friends: [], reqIn: [], reqOut: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, vStage: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null, selServer: null, myEmail: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -131,7 +135,7 @@ function applyLogin(r: LoginResult) {
   for (const [n, s] of r.online || []) presence[n] = s;
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
-    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], reqIn: r.social?.reqIn || [], reqOut: r.social?.reqOut || [], blocked: r.social?.blocked || [], prefs: r.prefs || state.prefs, myEmail: (r as any).myEmail ?? state.myEmail,
+    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, u15: r.u15 ?? null, needVeli: !!r.needVeli, warns: r.warns || [], minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], reqIn: r.social?.reqIn || [], reqOut: r.social?.reqOut || [], blocked: r.social?.blocked || [], prefs: r.prefs || state.prefs, myEmail: (r as any).myEmail ?? state.myEmail,
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle
@@ -199,6 +203,8 @@ function onEvents(s: Socket) {
   s.on('ice', (ice: any[]) => set({ ice: ice || [] }));
   s.on('prefs', (p: Prefs) => p && set({ prefs: p }));
   s.on('appForm', (f: AppForm) => f?.iid && set({ appForm: f }));
+  s.on('siteWarn', (w: SiteWarn) => w?.id && set(st => ({ warns: [...st.warns.filter(x => x.id !== w.id), w] })));
+  s.on('ageGate', () => { reauth(); }); // yetkili yaş kilidini kaldırdı: güncel durumu al
   for (const [ev, fn] of pendingHandlers) s.on(ev, fn);
   s.on('forceLogout', (msg: string) => { setItem(TOKEN, null); set({ phase: 'out', notice: String(msg || 'Oturumun kapatıldı.'), cur: null, msgs: {} }); });
 }
@@ -247,6 +253,27 @@ export async function logout() {
 }
 
 export function clearNotice() { set({ notice: null }); }
+
+// ---- Hesap kapıları: doğum tarihi, veli onayı, site uyarıları, sunucu kuralları ----
+// Oturumu yeniden doğrula ve tüm durumu sunucudan tekrar al (doğum tarihi girildikten sonra kilit kalkar)
+export async function reauth() {
+  const t = await getItem(TOKEN); if (!t || !socket?.connected) return;
+  socket.emit('auth', t, (r: LoginResult) => { if (r && !r.error) applyLogin(r); });
+}
+export async function setDob(iso: string): Promise<{ error?: string; locked?: boolean }> {
+  const r = await ask<{ ok?: boolean; error?: string; locked?: boolean }>('setDob', iso);
+  if (r?.ok) { set({ ageGate: null }); reauth(); return {}; }
+  if (r?.locked) set({ ageGate: 'locked' });
+  return { error: r?.error || 'Bağlantı yok', locked: r?.locked };
+}
+export async function veliOnay() { const r = await ask<{ ok?: boolean; error?: string }>('veliOnay', {}); if (r?.ok) set({ needVeli: false }); return r?.error || null; }
+export function warnSeen(id: string) { fire('warnSeen', id); set(st => ({ warns: st.warns.filter(w => w.id !== id) })); }
+export const openWelcome = (serverId: string | null) => set({ welcomeFor: serverId });
+export async function acceptRules(serverId: string, answers: string[]): Promise<{ error?: string; pending?: boolean }> {
+  const r = await ask<{ ok?: boolean; error?: string; pending?: boolean }>('acceptRules', { serverId, answers });
+  if (r?.ok) set(st => ({ servers: st.servers.map(s => (s.id === serverId ? (r.pending ? { ...s, apply: 'bekliyor' } : { ...s, accepted: true }) : s)) }));
+  return r?.ok ? { pending: r.pending } : { error: r?.error || 'Bağlantı yok' };
+}
 
 // ---- Sohbet ----
 export async function join(chId: string): Promise<{ error?: string }> {
@@ -351,6 +378,7 @@ export async function send(text: string, replyTo?: string | null, atts: Att[] = 
   let r: { error?: string; ok?: boolean; msg?: Msg; e2e?: boolean };
   if (ch && isPriv(ch) && e2e.live(ch)) r = await sendEnc();
   else { r = await sendPlain(); if (r?.e2e && ch) { await e2e.enter(ch); r = await sendEnc(); } } // sunucu "bu sohbet şifreli" derse şifreleyip tekrar
+  const nr = (r as { needRules?: string })?.needRules; if (nr) openWelcome(nr);
   if (r?.msg && state.cur) {
     const ch = state.cur, msg = r.msg;
     set(st => ({ msgs: { ...st.msgs, [ch]: (st.msgs[ch] || []).some(m => m.id === msg.id) ? st.msgs[ch] : [...(st.msgs[ch] || []), msg] } }));
