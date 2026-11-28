@@ -16,6 +16,7 @@ import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
 import { act, can, canAdmin, inviteUrl } from '@/lib/admin';
 import { Sheet, Row } from '@/components/AdminUI';
+import { maybeWelcome } from '@/components/WelcomeSheet';
 import { AddSheet, CatSheet, ChannelSheet, moveCat, moveIn } from '@/components/ChannelAdmin';
 
 const STEP = 58; // simge (48) + aralık (10)
@@ -80,6 +81,7 @@ export default function Sunucular() {
   const list = useMemo(() => orderServers(servers, order), [servers, order]);
   const cur = want && want.n > pickedAt ? want.id : sel;
   const server = list.find(s => s.id === cur) || list[0];
+  useEffect(() => { maybeWelcome(server); }, [server]);
   const [srvMenu, setSrvMenu] = useState<Server | null>(null);
   const [chMenu, setChMenu] = useState<Channel | null>(null);
   const [catMenu, setCatMenu] = useState<{ id: string; name: string } | null>(null);
