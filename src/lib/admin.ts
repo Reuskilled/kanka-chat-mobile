@@ -31,7 +31,7 @@ export function can(s: Server | null | undefined, perm: string) {
   return p.includes('administrator') || p.includes(perm);
 }
 // Sunucu ayarlarında görünecek bir şey var mı (yoksa çark simgesi hiç çıkmaz)
-export const canAdmin = (s?: Server | null) => !!s && (isOwner(s) || ['manageServer', 'manageRoles', 'manageChannels', 'kick', 'ban', 'timeout', 'viewAudit', 'manageMessages'].some(p => can(s, p)) || s.roles?.[getState().me || ''] === 'mod');
+export const canAdmin = (s?: Server | null) => !!s && (isOwner(s) || ['manageServer', 'manageRoles', 'manageChannels', 'manageEmojis', 'manageWebhooks', 'manageSounds', 'kick', 'ban', 'timeout', 'viewAudit', 'manageMessages'].some(p => can(s, p)) || s.roles?.[getState().me || ''] === 'mod');
 export const isMod = (s?: Server | null) => !!s && (isOwner(s) || s.roles?.[getState().me || ''] === 'mod' || can(s, 'administrator') || can(s, 'kick') || can(s, 'ban') || can(s, 'manageMessages'));
 
 export const inviteUrl = (s: Server) => s.vanity ? `${SERVER}/${s.vanity}` : `${SERVER}/davet/${s.invite}`;

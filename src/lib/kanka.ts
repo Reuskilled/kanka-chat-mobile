@@ -304,6 +304,14 @@ export async function uploadImage(uri: string, type: string): Promise<{ url?: st
   return r?.url ? { url: r.url } : { error: r?.error || 'Resim yüklenemedi' };
 }
 
+// Ses paneline ses: sunucu sadece WAV kabul ediyor (en çok 5 sn)
+export async function sbAddWav(serverId: string, uri: string, name: string, emoji: string): Promise<string | null> {
+  const b = await readBytes(uri);
+  if (b.length > 520 * 1024) return 'Ses dosyası çok büyük (en fazla 520 KB, 5 saniye)';
+  const r = await ask<{ error?: string }>('sbAdd', { serverId, data: `data:audio/wav;base64,${b64(b)}`, name, emoji });
+  return r?.error || (r ? null : 'Bağlantı yok');
+}
+
 export async function send(text: string, replyTo?: string | null, atts: Att[] = [], voice?: Voice): Promise<{ error?: string }> {
   const ch = state.cur;
   const sendEnc = async () => {

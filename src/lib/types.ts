@@ -60,7 +60,14 @@ export type Server = {
   energy?: { total: number; level: number };
   bot?: BotCfg;
   appCmds?: AppCmd[]; // sunucudaki botların / komutları
+  emojis?: Record<string, string>;
+  emojiMeta?: Record<string, { by: string; at: number }>;
+  sounds?: Sound[];
+  sbAll?: boolean;
+  welcome?: Welcome | null;
 };
+export type Sound = { id: string; name: string; emoji?: string; vol?: number; url: string; by: string; at?: number; sec?: number };
+export type Welcome = { enabled?: boolean; message?: string; rules?: string[]; channels?: { id: string; desc?: string }[] };
 export type BotMod = { on?: boolean; antinuke?: boolean; spam?: boolean; invites?: boolean; links?: boolean; mentions?: boolean; caps?: boolean; words?: string };
 export type BotCfg = { added?: boolean; mod?: BotMod };
 export type Role = { id: string; name: string; color?: string; perms?: string[]; hoist?: boolean; bot?: boolean; mention?: boolean };
