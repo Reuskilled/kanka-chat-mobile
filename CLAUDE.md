@@ -22,7 +22,7 @@ npx serve -s /tmp/kmweb -l 8099
 - **Android** (`android.yml`): Her push'ta çalışır. `versionCode = 100 + run_number`, sürüm `2.0.0.<run>`. APK (arm64) ve AAB'yi `android-v<sürüm>` release'ine koyar. Sırlar tanımlı değilse test anahtarıyla imzalar; Play bunu kabul etmez.
 - **Çökme testi** (`cokme.yml`): Her başarılı Android derlemesinden sonra AAB'den APK üretir, emülatörde açar, 25 saniye ayakta mı diye bakar; çökerse iş kırmızı olur. Elle de tetiklenebilir.
 - **iOS** (`ios.yml`): macOS'ta Xcode 26.6. Sır yoksa imzasız simülatör derlemesi. Sırlar varsa imzalı IPA ve TestFlight. `buildNumber = 100 + run_number`.
-- **Play'e yükleme şimdiye kadar elle yapıldı:** CI'ın AAB'si, kullanıcının yükleme anahtarıyla (SHA-256 `47:54:5D:AA:…:95:67`) imzalanıp kullanıcıya verildi. Play'deki son sürüm 2.0.0.20. Sırlar GitHub'a eklenince CI doğrudan doğru imzalı AAB üretir.
+- **Yükleme anahtarı (28 Kasım 2026):** Play'e kayıtlı eski anahtar (SHA1 `2F:24:AB:B4:…:85:3A`) kayboldu. Kullanıcının elindeki `kanka-yukleme.jks` (alias `kanka`, SHA1 `7E:10:3F:9F:14:4A:80:69:B9:AB:FB:98:0D:D6:06:4E:03:24:7A:93`) için Play'de yükleme anahtarı sıfırlama istendi. Onaydan sonra resmi anahtar bu. **Her imzadan önce parmak izini Play'in beklediğiyle karşılaştır.** Anahtarın kopyasını silmeden önce kullanıcıda yedeği olduğundan emin ol. Hedef: değerler GitHub sırlarında, imzalamayı CI yapsın. Play'deki son sürüm 2.0.0.20; 2.0.0.37 bu anahtarla imzalı, onay bekliyor.
 
 ## Bilinen tuzaklar
 - **R8 sınıf siliyor:** `plugins/with-proguard.js` keep kuralları içeriyor (webrtc, InCallManager, Room/WorkManager). WorkManager kuralı yokken 2.0.0.17 telefonda açılışta çöktü. Yeni yerel kütüphane eklersen çökme testine bak.
