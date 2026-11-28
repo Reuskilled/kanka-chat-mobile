@@ -1,12 +1,14 @@
 // Kanal üst çubuğundaki paneller: üye listesi ve mesaj arama
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/lib/theme';
-import { ask, openUser, useKanka } from '@/lib/kanka';
+import { ask, groupUpdate, openUser, useKanka } from '@/lib/kanka';
 import type { Msg, Server } from '@/lib/types';
 import { dayLabel, clock } from '@/lib/time';
-import { T, IconButton } from './ui';
+import { T, IconButton, Field, Button } from './ui';
+import { Sheet } from './AdminUI';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { Message } from './Message';
@@ -136,3 +138,38 @@ export function SearchPanel({ chId, title, open, onClose }: { chId: string; titl
   );
 }
 
+
+// Grup sohbeti ayarları: ad, üyeler, kişi ekle, gruptan ayrıl
+export function GroupSheet({ id, open, onClose }: { id: string; open: boolean; onClose: () => void }) {
+  const g = useKanka(st => st.dms.find(d => d.id === id));
+  const me = useKanka(st => st.me), users = useKanka(st => st.users);
+  const [name, setName] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!g) return null;
+  const cur = name ?? g.name ?? '';
+  const save = async () => { setBusy(true); const e = await groupUpdate(id, { name: cur.trim() }); setBusy(false); if (e) Alert.alert('Olmadı', e); else { setName(null); onClose(); } };
+  const leave = () => Alert.alert('Gruptan ayrıl', 'Tekrar eklenmedikçe bu grubun mesajlarını göremezsin.', [
+    { text: 'Vazgeç', style: 'cancel' },
+    { text: 'Ayrıl', style: 'destructive', onPress: async () => { const e = await groupUpdate(id, { leave: true }); if (e) return Alert.alert('Olmadı', e); onClose(); router.back(); } },
+  ]);
+  const members = g.members || [];
+  return (
+    <Sheet open={open} onClose={() => { setName(null); onClose(); }} title="Grup ayarları">
+      <Field label="Grup adı" value={cur} onChangeText={setName} placeholder={members.filter(n => n !== me).join(', ')} maxLength={40} />
+      {name !== null && name !== (g.name || '') && <Button title="Adı kaydet" busy={busy} onPress={save} />}
+      <T style={{ fontSize: 12, fontFamily: F.black, color: C.muted, letterSpacing: 0.6 }}>ÜYELER — {members.length}</T>
+      <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}>
+        {members.map((n, i) => (
+          <Pressable key={n} accessibilityRole="button" onPress={() => { onClose(); setTimeout(() => openUser(n), Platform.OS === 'ios' ? 450 : 0); }}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: pressed ? C.hover : 'transparent', borderBottomWidth: i === members.length - 1 ? 0 : 1, borderBottomColor: C.line })}>
+            <Avatar name={n} size={34} status />
+            <T numberOfLines={1} style={{ flex: 1, fontFamily: F.heavy }}>{users[n]?.displayName || n}{n === me ? ' (sen)' : ''}</T>
+            {g.owner === n && <Icon name="crown" size={15} color="#facc15" />}
+          </Pressable>
+        ))}
+      </View>
+      {members.length < 10 && <Button title="Kişi ekle" kind="ghost" onPress={() => { onClose(); router.push({ pathname: '/yeni-mesaj', params: { grup: id } } as any); }} />}
+      <Button title="Gruptan ayrıl" kind="danger" onPress={leave} />
+    </Sheet>
+  );
+}

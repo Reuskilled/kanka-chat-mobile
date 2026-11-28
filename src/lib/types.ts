@@ -76,7 +76,7 @@ export type Comp = {
 export type AppFormField = { id: string; etiket: string; tur: 'kisa' | 'uzun' | 'dosya' | 'kisi' | 'rol' | 'oda'; kabul?: string; zorunlu?: boolean; yerTutucu?: string; deger?: string; min?: number; max?: number };
 export type AppForm = { iid: string; app: string; bot: string; baslik: string; alanlar: AppFormField[] };
 
-export type Dm = { id: string; with?: string; name?: string; members?: string[]; last?: number };
+export type Dm = { id: string; with?: string; name?: string; members?: string[]; owner?: string | null; last?: number };
 
 export type Msg = {
   id: string;

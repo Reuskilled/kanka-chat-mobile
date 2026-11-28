@@ -17,7 +17,7 @@ import { Alert } from 'react-native';
 import { can, isMod } from '@/lib/admin';
 
 import { REASONS } from '@/lib/report';
-import { MembersPanel, SearchPanel } from '@/components/ChannelPanels';
+import { GroupSheet, MembersPanel, SearchPanel } from '@/components/ChannelPanels';
 import { CmdSheet } from '@/components/BotParts';
 
 const QUICK = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
@@ -43,7 +43,7 @@ export default function Kanal() {
   const [upw, setUpw] = useState('');
   const [ubusy, setUbusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [panel, setPanel] = useState<'uyeler' | 'ara' | null>(null);
+  const [panel, setPanel] = useState<'uyeler' | 'ara' | 'grup' | null>(null);
   const [cmd, setCmd] = useState<AppCmd | null>(null);
   const [dmCmds, setDmCmds] = useState<AppCmd[]>([]);
 
@@ -136,6 +136,7 @@ export default function Kanal() {
             <IconButton label="Görüntülü ara" onPress={async () => { const r = await startCall(id, true); if (r.error) Alert.alert('Arama başlatılamadı', r.error); else router.push('/ses'); }}><Icon name="video" size={21} color={C.ink} /></IconButton>
           </>) : <IconButton label="Mesajlarda ara" onPress={() => setPanel('ara')}><Icon name="search" size={20} color={C.ink} /></IconButton>}
           {!isDm && <IconButton label="Üyeler" onPress={() => setPanel('uyeler')}><Icon name="users" size={21} color={C.ink} /></IconButton>}
+          {id.startsWith('g:') && <IconButton label="Grup ayarları" onPress={() => setPanel('grup')}><Icon name="settings" size={20} color={C.ink} /></IconButton>}
         </View>
       </View>
 
@@ -196,6 +197,7 @@ export default function Kanal() {
       <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} />
       <CmdSheet cmd={cmd} chId={id} onClose={() => setCmd(null)} />
       {f && <MembersPanel s={f.server} open={panel === 'uyeler'} onClose={() => setPanel(null)} />}
+      {id.startsWith('g:') && <GroupSheet id={id} open={panel === 'grup'} onClose={() => setPanel(null)} />}
       {!isDm && <SearchPanel chId={id} title={title} open={panel === 'ara'} onClose={() => setPanel(null)} />}
 
       <Modal visible={!!menu} transparent animationType="fade" onRequestClose={() => setMenu(null)}>

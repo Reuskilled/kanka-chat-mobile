@@ -48,6 +48,7 @@ export default function Mesajlar() {
   const users = useKanka(s => s.users);
   const lastMsg = useKanka(s => s.lastMsg);
   const me = useKanka(s => s.me);
+  const reqIn = useKanka(s => s.reqIn.length);
   const [q, setQ] = useState('');
 
   const list = useMemo(() => {
@@ -62,8 +63,11 @@ export default function Mesajlar() {
     <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6 }}>
         <T accessibilityRole="header" style={{ flex: 1, fontFamily: F.black, fontSize: 26 }}>Mesajlar</T>
-        <IconButton label="Arkadaş ekle" bg={C.field}><Icon name="userAdd" size={20} /></IconButton>
-        <IconButton label="Yeni mesaj" bg={C.accent}><Icon name="pen" size={20} color={C.onAccent} stroke={2.4} /></IconButton>
+        <View>
+          <IconButton label={reqIn ? `Arkadaşlar, ${reqIn} yeni istek` : 'Arkadaşlar'} bg={C.field} onPress={() => router.push('/arkadaslar' as any)}><Icon name="userAdd" size={20} /></IconButton>
+          {reqIn > 0 && <View pointerEvents="none" style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: C.danger, alignItems: 'center', justifyContent: 'center' }}><T style={{ fontSize: 10.5, fontFamily: F.black, color: '#fff' }}>{reqIn}</T></View>}
+        </View>
+        <IconButton label="Yeni mesaj" bg={C.accent} onPress={() => router.push('/yeni-mesaj' as any)}><Icon name="pen" size={20} color={C.onAccent} stroke={2.4} /></IconButton>
       </View>
       <View style={{ paddingHorizontal: 14, paddingVertical: 8 }}>
         <View style={{ height: 42, borderRadius: 12, backgroundColor: C.field, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }}>

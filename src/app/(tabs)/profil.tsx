@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, View, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '@/lib/theme';
+import { C, F, statusColor } from '@/lib/theme';
+import { Sheet, Row as AdminRow } from '@/components/AdminUI';
 import { abs, SERVER, APP_VERSION } from '@/lib/config';
 import { fire, logout, useKanka, useSparkSatis } from '@/lib/kanka';
 import { T, IconButton } from '@/components/ui';
@@ -11,7 +13,7 @@ import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
 
 const STATUS: Record<string, string> = { online: 'Çevrimiçi', idle: 'Boşta', dnd: 'Rahatsız etmeyin', invisible: 'Görünmez' };
-const NEXT: Record<string, string> = { online: 'idle', idle: 'dnd', dnd: 'invisible', invisible: 'online' };
+const STATUS_SUB: Record<string, string> = { online: '', idle: 'Uzakta görünürsün', dnd: 'Bildirimler sessize alınır', invisible: 'Çevrimdışı görünürsün ama her şeyi kullanabilirsin' };
 
 function Row({ icon, label, value, onPress, danger }: { icon: string; label: string; value?: string; onPress?: () => void; danger?: boolean }) {
   return (
@@ -42,6 +44,8 @@ export default function Profil() {
   const friends = useKanka(s => s.friends.length);
   const blockedN = useKanka(s => s.blocked.length);
   const satis = useSparkSatis();
+  const reqIn = useKanka(s => s.reqIn.length);
+  const [stOpen, setStOpen] = useState(false);
   if (!u) return null;
   const banner = abs(u.bannerImg);
   const [c1, c2] = u.theme?.length ? u.theme : ['#4c1d95', '#9d174d'];
@@ -76,14 +80,16 @@ export default function Profil() {
           <Stat v={String(friends)} l="Arkadaş" />
           <Stat v={`${streak} gün`} l="Seri" c="#fb923c" />
         </View>
-        <Pressable accessibilityRole="button" onPress={() => web('/app')} style={{ height: 46, borderRadius: 14, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' }}>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/profil-duzenle' as any)} style={{ height: 46, borderRadius: 14, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' }}>
           <T style={{ color: C.onAccent, fontFamily: F.black }}>Profili düzenle</T>
         </Pressable>
       </View>
       <View style={{ marginHorizontal: 16, marginTop: 14, borderRadius: 16, backgroundColor: C.panel, overflow: 'hidden' }}>
-        <Row icon="clock" label="Durum" value={STATUS[pres] || 'Çevrimiçi'} onPress={() => fire('setStatus', NEXT[pres] || 'online')} />
+        <Row icon="clock" label="Durum" value={STATUS[pres] || 'Çevrimiçi'} onPress={() => setStOpen(true)} />
         <Sep />
-        <Row icon="lock" label="Hesap ve güvenlik" onPress={() => web('/app')} />
+        <Row icon="users" label="Arkadaşlar" value={reqIn ? `${reqIn} yeni istek` : String(friends)} onPress={() => router.push('/arkadaslar' as any)} />
+        <Sep />
+        <Row icon="lock" label="Hesap ve güvenlik" onPress={() => router.push('/guvenlik' as any)} />
         <Sep />
         <Row icon="bell" label="Bildirimler" onPress={() => web('/app')} />
         <Sep />
@@ -104,6 +110,17 @@ export default function Profil() {
         <Row icon="trash" label="Hesabı sil" danger onPress={() => router.push('/hesap-sil' as any)} />
       </View>
       <T style={{ textAlign: 'center', color: C.faint, fontSize: 12, marginTop: 14 }}>Kanka Chat {APP_VERSION}</T>
+      <Sheet open={stOpen} onClose={() => setStOpen(false)} title="Durumun">
+        <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}>
+          {(['online', 'idle', 'dnd', 'invisible'] as const).map((k, i) => (
+            <AdminRow key={k} title={STATUS[k]} sub={STATUS_SUB[k]} last={i === 3} left={<View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: statusColor(k) }} />}
+              right={pres === k ? <Icon name="check" size={18} color={C.accent} stroke={3} /> : undefined} onPress={() => { fire('setStatus', k); setStOpen(false); }} />
+          ))}
+        </View>
+        <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}>
+          <AdminRow title={u.status ? 'Özel durumu düzenle' : 'Özel durum ekle'} sub={u.status || 'Ne yaptığını arkadaşlarına söyle'} icon="pen" onPress={() => { setStOpen(false); router.push('/profil-duzenle' as any); }} last />
+        </View>
+      </Sheet>
     </ScrollView>
   );
 }

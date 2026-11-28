@@ -74,9 +74,12 @@ export default function Sunucular() {
   const presence = useKanka(s => s.presence);
   const [sel, setSel] = useState<string | null>(null);
   useEffect(() => { getItem('kanka-son-sunucu').then(v => v && setSel(v)); }, []);
+  const want = useKanka(s => s.selServer); // katılınca / kurunca başka ekrandan seçilen sunucu
+  const [pickedAt, setPickedAt] = useState(0);
   const order = useKanka(s => s.prefs?.order);
   const list = useMemo(() => orderServers(servers, order), [servers, order]);
-  const server = list.find(s => s.id === sel) || list[0];
+  const cur = want && want.n > pickedAt ? want.id : sel;
+  const server = list.find(s => s.id === cur) || list[0];
   const [srvMenu, setSrvMenu] = useState<Server | null>(null);
   const [chMenu, setChMenu] = useState<Channel | null>(null);
   const [catMenu, setCatMenu] = useState<{ id: string; name: string } | null>(null);
@@ -123,7 +126,7 @@ export default function Sunucular() {
     to = Math.max(0, Math.min(ids.length - 1, to)); if (to === i) return;
     ids.splice(i, 1); ids.splice(to, 0, s.id); setServerOrder(ids);
   };
-  const pick = (id: string) => { setSel(id); setItem('kanka-son-sunucu', id); };
+  const pick = (id: string) => { setSel(id); setPickedAt(want?.n ?? 0); setItem('kanka-son-sunucu', id); };
 
   const groups = useMemo(() => {
     if (!server) return [];
@@ -157,6 +160,12 @@ export default function Sunucular() {
             </View>
           ))}
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Sunucu ekle" onPress={() => router.push('/sunucu-ekle' as any)} style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 24, backgroundColor: pressed ? C.accentSoft : C.field, alignItems: 'center', justifyContent: 'center' })}>
+          <Icon name="plus" size={22} color={C.online} stroke={2.6} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Sunucu keşfet" onPress={() => router.push('/kesfet' as any)} style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 24, backgroundColor: pressed ? C.accentSoft : C.field, alignItems: 'center', justifyContent: 'center' })}>
+          <Icon name="search" size={20} color={C.online} stroke={2.4} />
+        </Pressable>
       </ScrollView>
       <View style={{ flex: 1, backgroundColor: C.panel, borderTopLeftRadius: 18, overflow: 'hidden' }}>
         {!server ? (

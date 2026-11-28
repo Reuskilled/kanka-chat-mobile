@@ -28,6 +28,8 @@ export type State = {
   cur: string | null;
   ageGate: LoginResult['ageGate'];
   friends: string[];
+  reqIn: string[]; // bana gelen arkadaşlık istekleri
+  reqOut: string[]; // benim gönderdiklerim
   blocked: string[];
   userSheet: string | null; // dokunulan kullanıcının kartı
   dec: Record<string, Dec>; // şifreli mesajların bu cihazda açılmış hâli
@@ -54,11 +56,13 @@ export type State = {
   notice: string | null;
   prefs: Prefs | null; // hesap tercihleri (sunucu sırası, oda bildirimleri…)
   appForm: AppForm | null; // botun açtığı form
+  selServer: { id: string; n: number } | null;
+  myEmail: string | null; // ana ekranda açılacak sunucu (katılınca / kurunca)
 };
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, friends: [], reqIn: [], reqOut: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null, selServer: null, myEmail: null,
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -124,7 +128,7 @@ function applyLogin(r: LoginResult) {
   for (const [n, s] of r.online || []) presence[n] = s;
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
-    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], blocked: r.social?.blocked || [], prefs: r.prefs || state.prefs,
+    voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], reqIn: r.social?.reqIn || [], reqOut: r.social?.reqOut || [], blocked: r.social?.blocked || [], prefs: r.prefs || state.prefs, myEmail: (r as any).myEmail ?? state.myEmail,
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle
@@ -186,7 +190,7 @@ function onEvents(s: Socket) {
   s.on('presenceDiff', ({ set: add = [], del = [] }: { set?: [string, string][]; del?: string[] }) => set(st => {
     const p = { ...st.presence }; for (const [n, v] of add) p[n] = v; for (const n of del) delete p[n]; return { presence: p };
   }));
-  s.on('social', (x: { friends?: string[]; blocked?: string[] }) => set({ friends: x?.friends || [], ...(x?.blocked ? { blocked: x.blocked } : {}) }));
+  s.on('social', (x: { friends?: string[]; reqIn?: string[]; reqOut?: string[]; blocked?: string[] }) => set({ friends: x?.friends || [], reqIn: x?.reqIn || [], reqOut: x?.reqOut || [], ...(x?.blocked ? { blocked: x.blocked } : {}) }));
   s.on('voiceState', (voice: Record<string, string[]>) => set({ voice }));
   s.on('voiceFlags', (vflags: State['vflags']) => set({ vflags: vflags || {} }));
   s.on('ice', (ice: any[]) => set({ ice: ice || [] }));
@@ -398,3 +402,74 @@ export function closeEph(chId: string, m: Msg) {
 }
 export const isBot = (u?: User | null) => !!u?.bot;
 export const botVerified = (u?: User | null) => !!u?.bot && typeof u.bot === 'object' && !!u.bot.dogrulandi;
+
+// ---- Arkadaşlık ----
+type R = { ok?: boolean; error?: string; accepted?: boolean };
+export async function friendRequest(name: string) { const r = await ask<R>('friendRequest', name.trim().replace(/^@/, '')); return r || {}; }
+export async function friendAccept(name: string) { const r = await ask<R>('friendAccept', name); return r?.error || null; }
+export async function friendRemove(name: string) { const r = await ask<R>('friendRemove', name); return r?.error || null; }
+export type Suggest = { name: string; sunucular: { id: string; ad: string }[]; sunucuSayisi: number; ortakArkadas: number; sohbet?: boolean };
+export async function friendSuggest(): Promise<Suggest[]> {
+  const r = await ask<{ sohbet?: { name: string }[]; oneriler?: Suggest[] }>('friendSuggest', {});
+  return [...(r?.sohbet || []).map(x => ({ name: x.name, sunucular: [], sunucuSayisi: 0, ortakArkadas: 0, sohbet: true })), ...(r?.oneriler || [])];
+}
+export const friendSuggestHide = (name: string) => ask('friendSuggestHide', name);
+export type Mutuals = { servers: { id: string; name: string; icon?: string; iconImg?: string | null }[]; friends: string[] };
+export async function mutuals(name: string): Promise<Mutuals> { const r = await ask<Mutuals>('mutuals', name); return { servers: r?.servers || [], friends: r?.friends || [] }; }
+export function friendState(name: string): 'me' | 'friend' | 'in' | 'out' | 'none' {
+  if (name === state.me) return 'me';
+  if (state.friends.includes(name)) return 'friend';
+  if (state.reqIn.includes(name)) return 'in';
+  if (state.reqOut.includes(name)) return 'out';
+  return 'none';
+}
+
+// ---- Sunucuya katılma / kurma / keşfet ----
+export type InvitePeek = { id: string; name: string; icon?: string; iconImg?: string | null; banner?: string | null; bannerColor?: string | null; description?: string; invite: string; members: number; online: number; joined: boolean };
+// Davet kodu: "abc123", "kankahq.com/davet/abc123", "https://kankahq.com/app?davet=abc123" ya da özel link "kankahq.com/isim"
+export function inviteCode(text: string): string | null {
+  const t = text.trim(); if (!t) return null;
+  const m = /(?:davet|invite|d)[=/]([A-Za-z0-9_-]{3,40})/i.exec(t); if (m) return m[1];
+  const v = /kankahq\.com\/([a-z0-9-]{2,40})\/?$/i.exec(t); if (v && !['app', 'davet', 'indir'].includes(v[1].toLowerCase())) return 's:' + v[1].toLowerCase();
+  return /^[A-Za-z0-9_-]{3,40}$/.test(t) ? t : null;
+}
+export async function invitePeek(code: string): Promise<InvitePeek | null> { const r = await ask<Record<string, InvitePeek | null>>('invitePeek', [code]); return r?.[code] || null; }
+export async function joinInvite(code: string): Promise<{ server?: Server; error?: string }> {
+  const r = await ask<Server & { error?: string }>('joinInvite', code.startsWith('s:') ? code.slice(2) : code);
+  if (!r || r.error) return { error: r?.error || 'Katılamadın' };
+  set(st => ({ servers: st.servers.some(x => x.id === r.id) ? st.servers.map(x => (x.id === r.id ? r : x)) : [...st.servers, r] }));
+  return { server: r };
+}
+export async function createServer(o: { name: string; template?: string; discord?: string }): Promise<{ server?: Server; error?: string }> {
+  const r = await ask<Server & { error?: string }>('createServer', o);
+  if (!r || r.error) return { error: r?.error || 'Sunucu kurulamadı' };
+  set(st => ({ servers: st.servers.some(x => x.id === r.id) ? st.servers : [...st.servers, r] }));
+  return { server: r };
+}
+export type DiscoverItem = InvitePeek & { category?: string; badges?: { id: string; ad?: string }[] };
+export async function discover(q = '', cat = ''): Promise<{ list: DiscoverItem[]; cats: string[] }> { const r = await ask<{ list?: DiscoverItem[]; cats?: string[] }>('discover', { q, cat }); return { list: r?.list || [], cats: r?.cats || [] }; }
+
+// ---- Grup DM ----
+export async function createGroup(members: string[], name?: string): Promise<{ id?: string; error?: string }> { const r = await ask<{ id?: string; error?: string }>('createGroup', { members, name }); return r || { error: 'Grup açılamadı' }; }
+export async function groupUpdate(id: string, p: { name?: string; add?: string[]; leave?: boolean }) { const r = await ask<R>('groupUpdate', { id, ...p }); return r?.error || null; }
+export async function openDM(other: string): Promise<{ id?: string; error?: string }> { const r = await ask<{ id?: string; error?: string }>('openDM', other); return r || { error: 'Açılamadı' }; }
+
+// ---- Profil ve hesap ----
+export async function updateProfile(p: Partial<{ avatar: string | null; bio: string; displayName: string; pronouns: string; bannerImg: string | null; color: string; theme: string[] }>) { const r = await ask<R>('updateProfile', p); return r?.error || null; }
+export async function setCustomStatus(text: string, until?: number | null) { const r = await ask<R>('setCustomStatus', { text, until }); return r?.error || null; }
+export async function changePassword(old: string, next: string) {
+  const r = await ask<R & { token?: string }>('changePassword', { old, next });
+  if (r?.token) await setItem(TOKEN, r.token); // diğer cihazlar kapanır, bu cihaz yeni oturumla devam eder
+  return r?.error || null;
+}
+export async function changeName(name: string, password: string) { const r = await ask<R & { field?: string; name?: string; token?: string }>('changeName', { name, password }); if (r?.token) await setItem(TOKEN, r.token); return r || {}; }
+export async function setEmail(email: string, password: string, code?: string) { const r = (await ask<R & { needTfa?: boolean; email?: string }>('setEmail', { email, password, code })) || {}; if (r.ok && r.email) set({ myEmail: r.email }); return r; }
+export type Sess = { id: string; cihaz: string; k: string; ip: string; at: number; seen: number; aktif: boolean; bu: boolean; n: number };
+export async function sessList(): Promise<Sess[]> { const r = await ask<{ list?: Sess[] }>('sessList'); return r?.list || []; }
+export async function sessKill(p: { id?: string; all?: boolean }) { const r = await ask<R & { n?: number }>('sessKill', p); return r || {}; }
+export async function tfaStatus() { return (await ask<{ on?: boolean; backupLeft?: number }>('tfaStatus')) || {}; }
+export async function tfaSetup(password: string) { return (await ask<R & { secret?: string; uri?: string }>('tfaSetup', { password })) || {}; }
+export async function tfaEnable(code: string) { return (await ask<R & { backup?: string[] }>('tfaEnable', { code })) || {}; }
+export async function tfaDisable(password: string, code: string) { const r = await ask<R>('tfaDisable', { password, code }); return r?.error || null; }
+export async function tfaNewBackup(code: string) { return (await ask<R & { backup?: string[] }>('tfaNewBackup', { code })) || {}; }
+export const selectServer = (id: string) => set({ selServer: { id, n: Date.now() } });

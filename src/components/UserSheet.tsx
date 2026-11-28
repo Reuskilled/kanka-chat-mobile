@@ -1,8 +1,8 @@
 // Kullanıcı kartı: mesajdaki avatara/isme ya da üye listesine dokununca. Mesaj gönder, engelle, şikayet et.
-import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { ask, blockUser, dmIdWith, openUser, useKanka } from '@/lib/kanka';
+import { ask, blockUser, dmIdWith, friendAccept, friendRemove, friendRequest, mutuals, openUser, selectServer, useKanka, type Mutuals } from '@/lib/kanka';
 import { REASONS } from '@/lib/report';
 import { C, F } from '@/lib/theme';
 import { Sheet, Row } from './AdminUI';
@@ -51,8 +51,18 @@ export function UserSheet() {
   const me = useKanka(s => s.me);
   const u = useKanka(s => (name ? s.users[name] : undefined));
   const blocked = useKanka(s => !!name && s.blocked.includes(name));
+  const fs = useKanka(s => (!name ? 'none' : name === s.me ? 'me' : s.friends.includes(name) ? 'friend' : s.reqIn.includes(name) ? 'in' : s.reqOut.includes(name) ? 'out' : 'none'));
+  const [mu, setMu] = useState<{ n: string; m: Mutuals } | null>(null);
+  useEffect(() => { if (name && name !== me && !u?.bot) mutuals(name).then(m => setMu({ n: name, m })); }, [name, me, u?.bot]);
   const close = () => openUser(null);
   if (!name) return null;
+  const m = mu?.n === name ? mu.m : null;
+  const friendBtn = async () => {
+    if (fs === 'friend') return Alert.alert('Arkadaşlıktan çıkar', `${u?.displayName || name} arkadaş listenden çıkarılsın mı?`, [{ text: 'Vazgeç', style: 'cancel' }, { text: 'Çıkar', style: 'destructive', onPress: () => friendRemove(name) }]);
+    if (fs === 'out') return friendRemove(name);
+    if (fs === 'in') { const e = await friendAccept(name); if (e) Alert.alert('Olmadı', e); return; }
+    const r = await friendRequest(name); if (r.error) Alert.alert('Gönderilemedi', r.error);
+  };
   const bot = u?.bot ? (typeof u.bot === 'object' ? u.bot : {}) as { dogrulandi?: boolean; sahip?: string | null } : name === 'Kanka Bot' ? { dogrulandi: true, sahip: null } : null;
   return (
     <Sheet open onClose={close}>
@@ -77,7 +87,36 @@ export function UserSheet() {
           <T style={{ fontSize: 12.5, color: C.faint }}>Botların komutlarını mesaj kutusuna / yazarak görebilirsin.</T>
         </View>
       )}
-      {name !== me && !blocked && <Button title="Mesaj gönder" icon={<Icon name="chat" size={18} color={C.onAccent} />} onPress={() => { close(); router.push({ pathname: '/kanal/[id]', params: { id: dmIdWith(me || '', name) } }); }} />}
+      {!!m && (m.servers.length > 0 || m.friends.length > 0) && (
+        <View style={{ padding: 12, borderRadius: 12, backgroundColor: C.card, gap: 8 }}>
+          {m.servers.length > 0 && <>
+            <T style={{ fontSize: 12, fontFamily: F.black, color: C.muted, letterSpacing: 0.5 }}>ORTAK SUNUCULAR — {m.servers.length}</T>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {m.servers.slice(0, 8).map(sv => (
+                <Pressable key={sv.id} accessibilityRole="button" accessibilityLabel={sv.name} onPress={() => { close(); selectServer(sv.id); router.navigate('/'); }}
+                  style={{ height: 30, paddingHorizontal: 10, borderRadius: 15, backgroundColor: C.field, justifyContent: 'center' }}>
+                  <T numberOfLines={1} style={{ fontSize: 13, fontFamily: F.heavy, maxWidth: 150 }}>{sv.name}</T>
+                </Pressable>
+              ))}
+            </View>
+          </>}
+          {m.friends.length > 0 && <>
+            <T style={{ fontSize: 12, fontFamily: F.black, color: C.muted, letterSpacing: 0.5 }}>ORTAK ARKADAŞLAR — {m.friends.length}</T>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {m.friends.slice(0, 10).map(n => <Pressable key={n} accessibilityRole="button" accessibilityLabel={n} onPress={() => openUser(n)}><Avatar name={n} size={30} /></Pressable>)}
+            </View>
+          </>}
+        </View>
+      )}
+      {name !== me && !blocked && !bot && (
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Button title="Mesaj gönder" style={{ flex: 1 }} icon={<Icon name="chat" size={18} color={C.onAccent} />} onPress={() => { close(); router.push({ pathname: '/kanal/[id]', params: { id: dmIdWith(me || '', name) } }); }} />
+          <Button kind={fs === 'none' || fs === 'in' ? 'primary' : 'ghost'} style={{ flex: 1 }} onPress={friendBtn}
+            title={fs === 'friend' ? 'Arkadaşsınız ✓' : fs === 'out' ? 'İstek gönderildi' : fs === 'in' ? 'İsteği kabul et' : 'Arkadaş ekle'}
+            icon={fs === 'none' ? <Icon name="userAdd" size={18} color={C.onAccent} /> : undefined} />
+        </View>
+      )}
+      {name !== me && !blocked && !!bot && <Button title="Mesaj gönder" icon={<Icon name="chat" size={18} color={C.onAccent} />} onPress={() => { close(); router.push({ pathname: '/kanal/[id]', params: { id: dmIdWith(me || '', name) } }); }} />}
       {name !== me && <SafetyActions name={name} onDone={close} />}
     </Sheet>
   );
