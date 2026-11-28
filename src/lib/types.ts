@@ -68,13 +68,19 @@ export type Server = {
   welcome?: Welcome | null;
   accepted?: boolean; // hoş geldin ekranı açıksa kuralları kabul etti mi
   gate?: { questions?: string[]; approval?: boolean } | null;
+  secLevel?: number; // katılım güvenliği: 0 yok … 4 en yüksek
+  sec?: { k: string; t: string; until?: number }[]; // benim için eksik hesap şartları
+  discoverable?: boolean; category?: string | null;
   apply?: string | null; // katılım başvurusu durumu: 'bekliyor' | 'onay' | 'red'
 };
 export type SiteWarn = { id: string; at: number; reason: string; count?: number };
 export type Sound = { id: string; name: string; emoji?: string; vol?: number; url: string; by: string; at?: number; sec?: number };
 export type Welcome = { enabled?: boolean; message?: string; rules?: string[]; channels?: { id: string; desc?: string }[] };
 export type BotMod = { on?: boolean; antinuke?: boolean; spam?: boolean; invites?: boolean; links?: boolean; mentions?: boolean; caps?: boolean; words?: string };
-export type BotCfg = { added?: boolean; mod?: BotMod };
+export type BotWelcome = { on?: boolean; ch?: string | null; text?: string; count?: boolean; role?: string | null; bye?: boolean; byeText?: string };
+export type BotAutorole = { on?: boolean; roles?: string[]; when?: 'join' | 'rules' | 'delay'; delayMin?: number };
+export type BotTicket = { on?: boolean; panelCh?: string | null; role?: string | null; askReason?: boolean; panelText?: string; welcome?: string; cooldownMin?: number };
+export type BotCfg = { added?: boolean; mod?: BotMod & { logCh?: string | null; warnLimit?: number }; welcome?: BotWelcome; autorole?: BotAutorole; ticket?: BotTicket };
 export type Role = { id: string; name: string; color?: string; perms?: string[]; hoist?: boolean; bot?: boolean; mention?: boolean };
 
 // Geliştirici botları: komut, kart (embed), bileşen (buton / seçim / kişi-rol-oda seçici), form
