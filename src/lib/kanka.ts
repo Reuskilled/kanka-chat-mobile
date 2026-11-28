@@ -473,3 +473,33 @@ export async function tfaEnable(code: string) { return (await ask<R & { backup?:
 export async function tfaDisable(password: string, code: string) { const r = await ask<R>('tfaDisable', { password, code }); return r?.error || null; }
 export async function tfaNewBackup(code: string) { return (await ask<R & { backup?: string[] }>('tfaNewBackup', { code })) || {}; }
 export const selectServer = (id: string) => set({ selServer: { id, n: Date.now() } });
+
+// ---- Mesajlaşma (2. paket) ----
+// Not: düzenleme / oylama / plan / xox sunucuda "şu an açık oda" (cur) üzerinden çalışır; bu ekranlar zaten o odadayken kullanılır
+export const editMsg = (msgId: string, text: string) => fire('edit', { msgId, text });
+export const vote = (msgId: string, index: number) => fire('vote', { msgId, index });
+export const planToggle = (msgId: string) => fire('planToggle', msgId);
+export const xoxMove = (msgId: string, i: number) => fire('xoxMove', { msgId, i });
+export async function sendKind(p: Record<string, unknown>) { const r = await ask<{ error?: string }>('message', p); return r?.error || null; }
+export async function forwardMsg(from: string, msgId: string, to: string) { const r = await ask<{ error?: string }>('forward', { from, msgId, to }); return r?.error || null; }
+export async function threadReply(msgId: string, text: string) { const r = await ask<{ error?: string }>('threadReply', { msgId, text }); return r?.error || null; }
+export type Scheduled = { id: string; chId: string; text: string; at: number };
+export async function schedule(text: string, at: number) { const r = await ask<{ error?: string }>('schedule', { text, at }); return r?.error || null; }
+export async function scheduledList(): Promise<Scheduled[]> { const r = await ask<Scheduled[]>('scheduledList'); return Array.isArray(r) ? r : []; }
+export async function unschedule(id: string): Promise<Scheduled[]> { const r = await ask<Scheduled[]>('unschedule', id); return Array.isArray(r) ? r : []; }
+export type Gif = { url: string; prev: string; w?: number; h?: number; title?: string };
+export async function gifs(q: string, page = 1): Promise<{ items: Gif[]; error?: string }> { const r = await ask<{ items?: Gif[]; error?: string }>('gifs', { q, page }); return { items: r?.items || [], error: r?.error }; }
+export async function noteGet(key: string) { return (await ask<{ text?: string; at?: number | null }>('noteGet', { key })) || {}; }
+export async function noteSet(key: string, text: string) { const r = await ask<{ error?: string; at?: number }>('noteSet', { key, text }); return r || {}; }
+// Mesaj bağlantısı (webdeki gibi): kankahq.com/kanal/<sunucu ya da @me>/<oda>/<mesaj>
+export function msgLink(chId: string, msgId: string) {
+  const f = chId.startsWith('dm:') || chId.startsWith('g:') ? null : findChannel(chId);
+  return `${SERVER}/kanal/${encodeURIComponent(f ? f.server.id : '@me')}/${encodeURIComponent(chId)}/${encodeURIComponent(msgId)}`;
+}
+// Metindeki :isim: sunucu emojileri: önce o odanın sunucusu, sonra üye olunan diğer sunucular
+export function emojiMap(chId?: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const own = chId ? findChannel(chId)?.server : null;
+  for (const s of [...state.servers.filter(x => x !== own), ...(own ? [own] : [])]) for (const [k, v] of Object.entries((s as any).emojis || {})) out[k] = v as string;
+  return out;
+}

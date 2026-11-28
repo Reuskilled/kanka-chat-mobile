@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { type Att, type Voice, ask, dmAppCmds, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
+import { type Att, type Voice, ask, dmAppCmds, msgLink, sendKind, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
 import type { AppCmd, Msg } from '@/lib/types';
 import { dayLabel } from '@/lib/time';
 import { T, IconButton } from '@/components/ui';
@@ -18,6 +18,7 @@ import { can, isMod } from '@/lib/admin';
 
 import { REASONS } from '@/lib/report';
 import { GroupSheet, MembersPanel, SearchPanel } from '@/components/ChannelPanels';
+import { EditSheet, ForwardSheet, GifSheet, NotesSheet, PlanSheet, PollSheet, ScheduleSheet, ThreadPanel } from '@/components/ChatTools';
 import { CmdSheet } from '@/components/BotParts';
 
 const QUICK = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
@@ -43,7 +44,9 @@ export default function Kanal() {
   const [upw, setUpw] = useState('');
   const [ubusy, setUbusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [panel, setPanel] = useState<'uyeler' | 'ara' | 'grup' | null>(null);
+  const [panel, setPanel] = useState<'uyeler' | 'ara' | 'grup' | 'not' | 'gif' | 'anket' | 'plan' | 'zaman' | null>(null);
+  const [edit, setEdit] = useState<Msg | null>(null), [fwd, setFwd] = useState<Msg | null>(null), [thread, setThread] = useState<string | null>(null), [schedText, setSchedText] = useState('');
+  const onThread = useCallback((m: Msg) => setThread(m.id), []);
   const [cmd, setCmd] = useState<AppCmd | null>(null);
   const [dmCmds, setDmCmds] = useState<AppCmd[]>([]);
 
@@ -136,6 +139,7 @@ export default function Kanal() {
             <IconButton label="Görüntülü ara" onPress={async () => { const r = await startCall(id, true); if (r.error) Alert.alert('Arama başlatılamadı', r.error); else router.push('/ses'); }}><Icon name="video" size={21} color={C.ink} /></IconButton>
           </>) : <IconButton label="Mesajlarda ara" onPress={() => setPanel('ara')}><Icon name="search" size={20} color={C.ink} /></IconButton>}
           {!isDm && <IconButton label="Üyeler" onPress={() => setPanel('uyeler')}><Icon name="users" size={21} color={C.ink} /></IconButton>}
+          <IconButton label="Notlarım" onPress={() => setPanel('not')}><Icon name="pen" size={19} color={C.ink} /></IconButton>
           {id.startsWith('g:') && <IconButton label="Grup ayarları" onPress={() => setPanel('grup')}><Icon name="settings" size={20} color={C.ink} /></IconButton>}
         </View>
       </View>
@@ -148,7 +152,7 @@ export default function Kanal() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
             <View style={{ flex: 1, height: 1, backgroundColor: C.line }} /><T style={{ fontSize: 12, color: C.faint, fontFamily: F.heavy }}>{item.label}</T><View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
           </View>
-        ) : <Message m={item.m} head={item.head} onLong={onLong} chId={id} />}
+        ) : <Message m={item.m} head={item.head} onLong={onLong} chId={id} onThread={onThread} />}
         onEndReached={() => loadOlder(id)}
         onEndReachedThreshold={0.4}
         contentContainerStyle={{ paddingVertical: 8 }}
@@ -194,9 +198,25 @@ export default function Kanal() {
           <IconButton label="Yanıtı iptal et" size={30} onPress={() => setReply(null)}><T style={{ color: C.muted, fontFamily: F.black }}>✕</T></IconButton>
         </View>
       )}
-      <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} />
+      <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} extras={secure ? [] : [
+        { t: 'GIF', ic: '🎞️', on: () => setPanel('gif') },
+        { t: 'Anket', ic: '📊', on: () => setPanel('anket') },
+        { t: 'Plan', ic: '🗓️', on: () => setPanel('plan') },
+        { t: 'Zar at', ic: '🎲', on: () => sendKind({ kind: 'dice', sides: 6 }).then(e => e && Alert.alert('Olmadı', e)) },
+        { t: 'Yazı tura', ic: '🪙', on: () => sendKind({ kind: 'coin' }).then(e => e && Alert.alert('Olmadı', e)) },
+        { t: 'XOX', ic: '❌', on: () => sendKind({ kind: 'xox' }).then(e => e && Alert.alert('Olmadı', e)) },
+        { t: 'Zamanla', ic: '⏰', takesText: true, on: (t: string) => { setSchedText(t); setPanel('zaman'); } },
+      ]} />
       <CmdSheet cmd={cmd} chId={id} onClose={() => setCmd(null)} />
       {f && <MembersPanel s={f.server} open={panel === 'uyeler'} onClose={() => setPanel(null)} />}
+      <NotesSheet chId={id} open={panel === 'not'} onClose={() => setPanel(null)} />
+      <GifSheet open={panel === 'gif'} onClose={() => setPanel(null)} />
+      <PollSheet open={panel === 'anket'} onClose={() => setPanel(null)} />
+      <PlanSheet open={panel === 'plan'} onClose={() => setPanel(null)} />
+      {panel === 'zaman' && <ScheduleSheet open chId={id} initial={schedText} onClose={() => setPanel(null)} />}
+      <EditSheet m={edit} onClose={() => setEdit(null)} />
+      <ForwardSheet from={id} m={fwd} onClose={() => setFwd(null)} />
+      <ThreadPanel chId={id} rootId={thread} onClose={() => setThread(null)} />
       {id.startsWith('g:') && <GroupSheet id={id} open={panel === 'grup'} onClose={() => setPanel(null)} />}
       {!isDm && <SearchPanel chId={id} title={title} open={panel === 'ara'} onClose={() => setPanel(null)} />}
 
@@ -213,7 +233,11 @@ export default function Kanal() {
             </View>
             {[
               { t: 'Yanıtla', ic: 'reply', on: () => menu && setReply(menu) },
+              ...(menu && menu.author === me && (menu.kind || 'text') === 'text' && !menu.enc && !!menu.text ? [{ t: 'Düzenle', ic: 'pen', on: () => setEdit(menu) }] : []),
+              ...(menu && !secure && !menu.ephemeral && menu.kind !== 'system' ? [{ t: 'Yanıt dizisi', ic: 'chat', on: () => setThread(menu.id) }] : []),
+              ...(menu && !menu.enc && !menu.ephemeral && ['text', 'bot', 'plan', 'poll', 'song'].includes(menu.kind || 'text') ? [{ t: 'İlet', ic: 'send', on: () => setFwd(menu) }] : []),
               ...(menuText ? [{ t: 'Metni kopyala', ic: 'file', on: () => Clipboard.setStringAsync(menuText) }] : []),
+              ...(menu && !menu.ephemeral ? [{ t: 'Bağlantıyı kopyala', ic: 'tag', on: () => Clipboard.setStringAsync(msgLink(id, menu.id)) }] : []),
               ...(menu && canPin ? [{ t: (menu as any).pinned ? 'Sabitlemeyi kaldır' : 'Sabitle', ic: 'tag', on: () => pinMsg(menu.id) }] : []),
               ...(menu && menu.author && menu.author !== me && !menu.enc ? [{ t: 'Şikayet et', ic: 'bell', on: () => setReport(menu) }] : []),
               ...(menu && (menu.author === me || canDel) ? [{ t: 'Mesajı sil', ic: 'trash', danger: true, on: () => askDel(menu) }] : []),

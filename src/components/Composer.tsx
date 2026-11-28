@@ -20,8 +20,8 @@ const REC_MAX = 300;
 const extOf = (mime: string) => (mime.split('/')[1] || 'bin').replace('jpeg', 'jpg');
 
 // Mesaj yazma alanı: metin + fotoğraf/dosya ekleme (en çok 10), gönderirken yükleme göstergesi
-export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secure, cmds, onCmd }: {
-  placeholder: string; bottom: number; secure?: boolean; cmds?: AppCmd[]; onCmd?: (c: AppCmd) => void;
+export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secure, cmds, onCmd, extras }: {
+  placeholder: string; bottom: number; secure?: boolean; cmds?: AppCmd[]; onCmd?: (c: AppCmd) => void; extras?: { t: string; ic: string; on: (text: string) => void; takesText?: boolean }[];
   onSend: (text: string, atts: Att[]) => Promise<boolean>; onVoice?: (v: Voice) => Promise<boolean>; onTyping: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -191,6 +191,16 @@ export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secur
                 <Icon name={a.ic} size={20} color={C.accent} /><T style={{ fontFamily: F.heavy, fontSize: 15.5 }}>{a.t}</T>
               </Pressable>
             ))}
+            {!!extras?.length && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                {extras.map(a => (
+                  <Pressable key={a.t} accessibilityRole="button" onPress={() => { setSheet(false); const t0 = text; if (a.takesText) setText(''); setTimeout(() => a.on(t0), Platform.OS === 'ios' ? 400 : 0); }}
+                    style={({ pressed }) => ({ width: '31.5%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', gap: 6, backgroundColor: pressed ? C.hover : C.card })}>
+                    <T style={{ fontSize: 20 }}>{a.ic}</T><T style={{ fontFamily: F.heavy, fontSize: 12.5 }}>{a.t}</T>
+                  </Pressable>
+                ))}
+              </View>
+            )}
             {secure && <T style={{ fontSize: 12.5, color: C.muted, textAlign: 'center', marginTop: 4 }}>Bu sohbette dosyalar da cihazında şifrelenip gönderilir.</T>}
           </Pressable>
         </Pressable>

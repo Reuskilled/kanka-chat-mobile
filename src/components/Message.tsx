@@ -13,24 +13,9 @@ import { T } from './ui';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { BotBadge, CompRows, EmbedCard, EphFooter } from './BotParts';
+import { FwdTag, MsgKind, RichText, ThreadChip } from './MsgExtras';
 
 // Mesaj metni: @bahsetmeler vurgulu, linkler tıklanır
-function RichText({ text, me }: { text: string; me: string | null }) {
-  const parts = text.split(/(@[\p{L}\p{N}_.-]{2,20}|https?:\/\/[^\s<>"']+)/u);
-  return (
-    <T selectable style={{ fontSize: 15, lineHeight: 21, color: C.ink2 }}>
-      {parts.map((p, i) => {
-        if (/^@/.test(p)) {
-          const mine = p.slice(1).toLocaleLowerCase('tr') === (me || '').toLocaleLowerCase('tr');
-          return <T key={i} style={{ fontSize: 15, fontFamily: F.heavy, color: '#e5ff66', backgroundColor: mine ? 'rgba(212,255,0,0.28)' : C.accentSoft, borderRadius: 5 }}>{p}</T>;
-        }
-        if (/^https?:\/\//.test(p)) return <T key={i} onPress={() => Linking.openURL(p)} style={{ fontSize: 15, color: '#7dd3fc', textDecorationLine: 'underline' }}>{p}</T>;
-        return p;
-      })}
-    </T>
-  );
-}
-
 function Reactions({ m, me }: { m: Msg; me: string | null }) {
   const list = Object.entries(m.reactions || {}).filter(([, who]) => who?.length);
   if (!list.length) return null;
@@ -67,7 +52,7 @@ function Body({ m: m0, me, chId }: { m: Msg; me: string | null; chId?: string })
     m = { ...m0, text: typeof x.t === 'string' ? x.t.slice(0, 4000) : '', gif: (x.g as any)?.url || null, image: null, files: [] };
     if (ef.length || x.au) return (
       <View>
-        {!!m.text && <RichText text={m.text} me={me} />}
+        {!!m.text && <RichText text={m.text} me={me} chId={chId} />}
         {ef.map(f => isImg(f.m) ? <EncImage key={f.i} f={f} /> : <EncFileCard key={f.i} f={f} />)}
         {!!x.au && (encFileOk(x.au) ? <VoiceNote id={m0.id} enc={x.au} dur={Math.min(Math.max(+(x.du || 0), 0), 600)} /> : <FileCard name="Ses mesajı" note="açılamadı" icon="speaker" />)}
       </View>
@@ -77,7 +62,7 @@ function Body({ m: m0, me, chId }: { m: Msg; me: string | null; chId?: string })
   const img = abs(m.image || (typeof m.gif === 'string' ? m.gif : (m.gif as any)?.url));
   return (
     <View>
-      {m.kind === 'bot' && m.bot ? (m.bot.plain ? (!!m.bot.text && <RichText text={m.bot.text.replace(/\*\*/g, '')} me={me} />) : (
+      {m.kind === 'bot' && m.bot ? (m.bot.plain ? (!!m.bot.text && <RichText text={m.bot.text} me={me} chId={chId} />) : (
         <View style={{ marginTop: 2, padding: 12, borderRadius: 12, backgroundColor: C.card, borderLeftWidth: 3, borderLeftColor: m.bot.tone === 'good' ? C.online : m.bot.tone === 'warn' ? C.idle : m.bot.tone === 'bad' || m.bot.tone === 'danger' ? C.danger : C.accent, gap: 4 }}>
           {!!m.bot.title && <T style={{ fontFamily: F.black, fontSize: 15 }}>{m.bot.title}</T>}
           {!!m.bot.text && <T selectable style={{ fontSize: 14, lineHeight: 20, color: C.ink2 }}>{m.bot.text.replace(/\*\*/g, '')}</T>}
@@ -91,7 +76,8 @@ function Body({ m: m0, me, chId }: { m: Msg; me: string | null; chId?: string })
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
           <ActivityIndicator size="small" color={C.muted} /><T style={{ fontSize: 14, color: C.muted, fontStyle: 'italic' }}>düşünüyor…</T>
         </View>
-      ) : !!m.text && <RichText text={m.text} me={me} />}
+      ) : !!m.text && <RichText text={m.text} me={me} chId={chId} />}
+      <MsgKind m={m} me={me} />
       {!!m.audio && <VoiceNote id={m.id} src={m.audio} dur={m.duration || 0} />}
       {img && (
         <Pressable accessibilityRole="imagebutton" accessibilityLabel="Görseli aç" onPress={() => Linking.openURL(img)}>
@@ -173,7 +159,7 @@ function SysRow({ m }: { m: Msg }) {
   );
 }
 
-export const Message = memo(function Message({ m, head, onLong, chId }: { m: Msg; head: boolean; onLong: (m: Msg) => void; chId?: string }) {
+export const Message = memo(function Message({ m, head, onLong, chId, onThread }: { m: Msg; head: boolean; onLong: (m: Msg) => void; chId?: string; onThread?: (m: Msg) => void }) {
   const me = useKanka(s => s.me);
   const u = useKanka(s => (m.author ? s.users[m.author] : undefined));
   const repDec = useKanka(s => (m.replyTo?.enc ? s.dec[m.replyTo.id] : undefined));
@@ -217,7 +203,9 @@ export const Message = memo(function Message({ m, head, onLong, chId }: { m: Msg
             {!!m.edited && <T style={{ fontSize: 11, color: C.faint }}>(düzenlendi)</T>}
           </View>
         )}
+        <FwdTag m={m} />
         <Body m={m} me={me} chId={chId} />
+        <ThreadChip m={m} onOpen={onThread} />
         <Reactions m={m} me={me} />
       </View>
     </Pressable>
