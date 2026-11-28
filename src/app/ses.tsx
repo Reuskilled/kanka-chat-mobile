@@ -9,16 +9,17 @@ import { VideoView } from '@/components/VideoView';
 import { T, IconButton } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
+import { PingSheet, SoundboardSheet, StageBar, VoiceModSheet, canModVoice } from '@/components/VoicePanels';
 
 type TileInfo = { name: string; me: boolean; sid: string | null; video: any; mirror: boolean; live: boolean; watching: boolean; sharing: boolean };
 
-function Tile({ t, speaking, muted, deaf, onOpen }: { t: TileInfo; speaking: boolean; muted?: boolean; deaf?: boolean; onOpen: () => void }) {
+function Tile({ t, speaking, muted, deaf, onOpen, onLong }: { t: TileInfo; speaking: boolean; muted?: boolean; deaf?: boolean; onOpen: () => void; onLong?: () => void }) {
   const u = useKanka(s => s.users[t.name]);
   const name = u?.displayName || t.name;
   const big = !!t.video || t.sharing || t.live;
   return (
-    <Pressable onPress={t.video ? onOpen : t.live && t.sid ? () => watchStream(t.sid!, true) : undefined} disabled={!t.video && !(t.live && t.sid)}
-      accessibilityRole={t.video || t.live ? 'button' : undefined}
+    <Pressable onPress={t.video ? onOpen : t.live && t.sid ? () => watchStream(t.sid!, true) : undefined} onLongPress={onLong} delayLongPress={400} disabled={!t.video && !(t.live && t.sid) && !onLong}
+      accessibilityRole={t.video || t.live || onLong ? 'button' : undefined}
       accessibilityLabel={`${name}${t.me ? ' (sen)' : ''}${speaking ? ', konuşuyor' : ''}${muted ? ', mikrofonu kapalı' : ''}${t.live && !t.watching ? ', ekran paylaşıyor, izlemek için dokun' : t.video ? ', görüntüyü büyütmek için dokun' : ''}`}
       style={{ flexBasis: big ? '100%' : '47%', flexGrow: 1, height: big ? 230 : 170, borderRadius: 18, backgroundColor: C.card, borderWidth: 1.5, borderColor: speaking ? C.online : C.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
       {t.video ? <VideoView stream={t.video} mirror={t.mirror} fit={t.live ? 'contain' : 'cover'} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }} />
@@ -78,6 +79,7 @@ export default function Ses() {
   const vToast = useKanka(s => s.vToast);
   const users = useKanka(s => s.users);
   const [full, setFull] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<'ping' | 'sb' | null>(null), [modOf, setModOf] = useState<string | null>(null);
   useEffect(() => { if (!vToast) return; const t = setTimeout(() => setVoice({ vToast: null }), 5000); return () => clearTimeout(t); }, [vToast]);
   const run = async (f: () => Promise<{ error?: string }>) => { const r = await f(); if (r.error) Alert.alert('Olmadı', r.error); };
 
@@ -93,6 +95,7 @@ export default function Ses() {
     </View>
   );
   const isCall = ch.startsWith('call:');
+  const modOk = !isCall && canModVoice(ch);
   const tiles: TileInfo[] = people.map(n => {
     if (n === me) { const v = myCam ? getLocalVideo() : null; return { name: n, me: true, sid: null, video: v, mirror: camFront, live: false, watching: false, sharing: myScreen }; }
     const sid = sidOf(n), m = sid ? vMedia[sid] : undefined, rv = sid ? getRemoteVideo(sid) : null;
@@ -114,15 +117,18 @@ export default function Ses() {
           </View>
           <T style={{ fontSize: 12, color: C.online, fontFamily: F.bold }}>{status} · {people.length} kişi</T>
         </View>
+        <IconButton label="Bağlantı ve ping" onPress={() => setSheet('ping')}><Icon name="zap" size={20} color={C.online} /></IconButton>
+        <IconButton label="Ses paneli" onPress={() => setSheet('sb')}><T style={{ fontSize: 20 }}>🔊</T></IconButton>
         {!isCall && <IconButton label="Arena oyunları" onPress={() => router.push({ pathname: '/arena' as any, params: { ch } })}><Icon name="game" size={22} color={C.muted} /></IconButton>}
         {!isCall && <IconButton label="Oda sohbeti" onPress={() => router.push({ pathname: '/kanal/[id]', params: { id: ch } })}><Icon name="chat" size={21} color={C.muted} /></IconButton>}
       </View>
       <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12 }}>
         {tiles.map(t => {
           const f = flags?.[t.name];
-          return <Tile key={t.name} t={t} onOpen={() => setFull(t.name)} speaking={!!speaking[t.name]} muted={t.me ? muted || deaf : f?.m} deaf={t.me ? deaf : f?.d} />;
+          return <Tile key={t.name} t={t} onOpen={() => setFull(t.name)} onLong={!t.me && modOk ? () => setModOf(t.name) : undefined} speaking={!!speaking[t.name]} muted={t.me ? muted || deaf : f?.m} deaf={t.me ? deaf : f?.d} />;
         })}
       </ScrollView>
+      {!isCall && <StageBar ch={ch} />}
       {!!vToast && (
         <Pressable onPress={() => setVoice({ vToast: null })} accessibilityLiveRegion="polite" style={{ marginHorizontal: 14, marginBottom: 10, padding: 12, borderRadius: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineStrong }}>
           <T style={{ fontSize: 13.5, fontFamily: F.bold }}>{vToast}</T>
@@ -136,6 +142,9 @@ export default function Ses() {
         <Ctl label={deaf ? 'Ses kapalı' : 'Ses'} icon={deaf ? 'headphonesOff' : 'headphones'} on={!deaf} onPress={toggleDeaf} />
         <Ctl label="Ayrıl" icon="hangup" danger onPress={() => { leaveVoice(); router.back(); }} />
       </View>
+      <PingSheet open={sheet === 'ping'} onClose={() => setSheet(null)} />
+      <SoundboardSheet ch={ch} open={sheet === 'sb'} onClose={() => setSheet(null)} />
+      <VoiceModSheet ch={ch} name={modOf} onClose={() => setModOf(null)} />
       <Modal visible={!!fullTile} animationType="fade" supportedOrientations={['portrait', 'landscape']} onRequestClose={() => setFull(null)}>
         <View style={{ flex: 1, backgroundColor: '#000' }}>
           {fullTile && <VideoView stream={fullTile.video} mirror={fullTile.mirror} fit="contain" style={{ flex: 1 }} />}
