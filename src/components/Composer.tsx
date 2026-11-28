@@ -20,13 +20,14 @@ const REC_MAX = 300;
 const extOf = (mime: string) => (mime.split('/')[1] || 'bin').replace('jpeg', 'jpg');
 
 // Mesaj yazma alanı: metin + fotoğraf/dosya ekleme (en çok 10), gönderirken yükleme göstergesi
-export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secure, cmds, onCmd, extras }: {
+export function Composer({ placeholder, onSend, onVoice, onTyping, bottom, secure, cmds, onCmd, extras, initial }: {
+  initial?: { text: string; atts: Att[] } | null;
   placeholder: string; bottom: number; secure?: boolean; cmds?: AppCmd[]; onCmd?: (c: AppCmd) => void; extras?: { t: string; ic: string; on: (text: string) => void; takesText?: boolean }[];
   onSend: (text: string, atts: Att[]) => Promise<boolean>; onVoice?: (v: Voice) => Promise<boolean>; onTyping: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const [text, setText] = useState('');
-  const [atts, setAtts] = useState<Att[]>([]);
+  const [text, setText] = useState(initial?.text || '');
+  const [atts, setAtts] = useState<Att[]>(initial?.atts || []);
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [warn, setWarn] = useState<string | null>(null);

@@ -30,10 +30,30 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.USE_BIOMETRIC",
         "android.permission.USE_EXACT_ALARM",
-        "android.permission.USE_FINGERPRINT",
         "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kankahq.com",
+              "pathPrefix": "/davet/"
+            },
+            {
+              "scheme": "https",
+              "host": "kankahq.com",
+              "pathPrefix": "/s/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "ios": {
@@ -54,7 +74,8 @@
           "audio"
         ],
         "ITSAppUsesNonExemptEncryption": true,
-        "CFBundleDevelopmentRegion": "tr"
+        "CFBundleDevelopmentRegion": "tr",
+        "NSFaceIDUsageDescription": "Uygulama kilidini Face ID ile açabilmen için."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -204,6 +225,30 @@
         }
       ],
       "./plugins/with-voice-service.js",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Uygulama kilidini Face ID ile açabilmen için."
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Kanka",
+              "label": "Kanka",
+              "description": "Çevrimiçi arkadaşlar, dolu sesli odalar ve kısayollar",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ],
       "./plugins/with-proguard.js",
       [
         "expo-audio",
@@ -212,7 +257,28 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-sharing",
+      [
+        "expo-sharing",
+        {
+          "ios": {
+            "enabled": false
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": [
+              "text/*",
+              "image/*",
+              "video/*",
+              "audio/*",
+              "application/*"
+            ],
+            "multipleShareMimeTypes": [
+              "image/*",
+              "video/*"
+            ]
+          }
+        }
+      ],
       "./plugins/with-screen-share.js",
       "expo-iap",
       "./plugins/with-ios-signing.js"
