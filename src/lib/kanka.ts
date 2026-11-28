@@ -504,3 +504,13 @@ export function emojiMap(chId?: string): Record<string, string> {
   for (const s of [...state.servers.filter(x => x !== own), ...(own ? [own] : [])]) for (const [k, v] of Object.entries((s as any).emojis || {})) out[k] = v as string;
   return out;
 }
+
+// ---- Topluluk (4. paket) ----
+export async function ticketOpen(serverId: string, reason: string) { return (await ask<{ error?: string; channelId?: string }>('ticketOpen', { serverId, reason })) || {}; }
+export async function ticketClaim(channelId: string) { const r = await ask<{ error?: string }>('ticketClaim', { channelId }); return r?.error || null; }
+export async function ticketClose(channelId: string) { const r = await ask<{ error?: string }>('ticketClose', { channelId }); return r?.error || null; }
+export type TopRow = { name: string; xp: number; level: number; streak: number; rank?: number };
+export async function hqTops() { return (await ask<{ lvl: TopRow[]; stk: TopRow[]; me: TopRow & { lvlRank: number; stkRank: number } } | null>('hqTops')) || null; }
+export async function leaderboard(serverId: string): Promise<TopRow[]> { const r = await ask<TopRow[]>('leaderboard', serverId); return Array.isArray(r) ? r : []; }
+export async function myBadges() { return (await ask<{ all?: string[]; hidden?: string[]; meta?: Record<string, [string, string, string]> }>('myBadges', {})) || {}; }
+export async function hideBadges(hidden: string[]) { const r = await ask<{ error?: string }>('hideBadges', { hidden }); return r?.error || null; }

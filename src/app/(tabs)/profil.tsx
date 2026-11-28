@@ -89,6 +89,10 @@ export default function Profil() {
         <Sep />
         <Row icon="users" label="Arkadaşlar" value={reqIn ? `${reqIn} yeni istek` : String(friends)} onPress={() => router.push('/arkadaslar' as any)} />
         <Sep />
+        <Row icon="palette" label="Market" value="Çerçeve, efekt, afiş" onPress={() => router.push('/gorunum' as any)} />
+        <Sep />
+        <Row icon="star" label="Sıralama ve rozetler" onPress={() => router.push('/siralama' as any)} />
+        <Sep />
         <Row icon="lock" label="Hesap ve güvenlik" onPress={() => router.push('/guvenlik' as any)} />
         <Sep />
         <Row icon="bell" label="Bildirimler" onPress={() => web('/app')} />

@@ -102,6 +102,8 @@ export type Msg = {
   song?: { title: string; url: string; by?: string };
   thread?: { id: string; author: string; text: string; time: number }[];
   fwd?: { author?: string | null };
+  ticketPanel?: boolean;
+  ticket?: { no?: number; by?: string; claimedBy?: string | null; closed?: boolean | number };
   xfrom?: { server?: string; channel?: string };
   bot?: { title?: string; text?: string; tone?: string; fields?: [string, string][]; plain?: boolean };
   app?: string; // geliştirici botunun mesajı

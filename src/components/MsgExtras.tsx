@@ -1,10 +1,12 @@
 // Mesaj türleri: anket, plan, zar / yazı-tura / XOX, şarkı; iletildi etiketi, yanıt dizisi düğmesi; zengin metin (kalın, italik, spoiler, sunucu emojisi)
 import { useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Alert, Linking, Pressable, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { C, F } from '@/lib/theme';
 import { abs } from '@/lib/config';
-import { displayName, emojiMap, openUser, planToggle, vote, xoxMove } from '@/lib/kanka';
+import { displayName, emojiMap, findChannel, openUser, planToggle, ticketClaim, ticketClose, ticketOpen, useKanka, vote, xoxMove } from '@/lib/kanka';
+import { Sheet } from './AdminUI';
 import type { Msg } from '@/lib/types';
 import { T } from './ui';
 import { Icon } from './Icon';
@@ -158,5 +160,42 @@ export function ThreadChip({ m, onOpen }: { m: Msg; onOpen?: (m: Msg) => void })
       <T style={{ fontSize: 13, fontFamily: F.heavy, color: '#7dd3fc' }}>{n} yanıt</T>
       <T numberOfLines={1} style={{ fontSize: 12.5, color: C.muted, maxWidth: 160 }}>{last.text}</T>
     </Pressable>
+  );
+}
+
+function TkBtn({ t: label, on, danger, busy }: { t: string; on: () => void; danger?: boolean; busy?: boolean }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={on} disabled={busy} style={({ pressed }) => ({ height: 38, paddingHorizontal: 14, borderRadius: 10, justifyContent: 'center', backgroundColor: danger ? 'rgba(239,90,90,0.14)' : C.accent, opacity: pressed || busy ? 0.75 : 1 })}>
+      <T style={{ fontFamily: F.black, fontSize: 14, color: danger ? '#ef5a5a' : C.onAccent }}>{label}</T>
+    </Pressable>
+  );
+}
+// ---- Destek talebi (Kanka Bot'un destek paneli ve talep odası mesajları) ----
+export function TicketActions({ m, chId }: { m: Msg; chId?: string }) {
+  const me = useKanka(s => s.me);
+  const [ask, setAsk] = useState(false), [reason, setReason] = useState(''), [busy, setBusy] = useState(false);
+  if (!chId || (!m.ticketPanel && !m.ticket)) return null;
+  const f = findChannel(chId); if (!f) return null;
+  const sv = f.server as any, t = m.ticket || {}, staff = !!sv.myTicketStaff;
+  if (!m.ticketPanel && t.closed) return null;
+  const open = async (r: string) => {
+    setBusy(true); const x = await ticketOpen(sv.id, r); setBusy(false); setAsk(false); setReason('');
+    if (x.error) return Alert.alert('Talep açılamadı', x.error);
+    if (x.channelId) router.push({ pathname: '/kanal/[id]', params: { id: x.channelId } });
+  };
+  const run = async (p: Promise<string | null>) => { const e = await p; if (e) Alert.alert('Olmadı', e); };
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+      {m.ticketPanel ? <TkBtn busy={busy} t="🎟️ Talep aç" on={() => (sv.bot?.ticket?.askReason ? setAsk(true) : open(''))} /> : <>
+        {!t.claimedBy && staff && <TkBtn busy={busy} t="Üstlen" on={() => run(ticketClaim(chId))} />}
+        {(staff || t.by === me) && <TkBtn busy={busy} t="Talebi kapat" danger on={() => Alert.alert('Talebi kapat', 'Bu destek talebi kapatılsın mı?', [{ text: 'Vazgeç', style: 'cancel' }, { text: 'Kapat', style: 'destructive', onPress: () => run(ticketClose(chId)) }])} />}
+      </>}
+      <Sheet open={ask} onClose={() => setAsk(false)} title="Destek talebi">
+        <T style={{ color: C.muted, fontSize: 13.5, marginTop: -6 }}>Konunu kısaca yaz. Yetkililer seninle bu odada ilgilenecek.</T>
+        <TextInput value={reason} onChangeText={setReason} maxLength={120} placeholder="Örn: Rolüm görünmüyor" placeholderTextColor={C.faint} accessibilityLabel="Konu" autoFocus
+          style={{ height: 48, borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineStrong, color: C.ink, paddingHorizontal: 14, fontSize: 15 }} />
+        <TkBtn busy={busy} t="Talep aç" on={() => (reason.trim().length < 2 ? Alert.alert('Konu', 'Konunu yaz.') : open(reason.trim()))} />
+      </Sheet>
+    </View>
   );
 }

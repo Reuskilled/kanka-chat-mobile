@@ -29,7 +29,8 @@ export default function SunucuMenu() {
         </Section>
       )}
       {(satis || benSpark || !!s.energy?.total) && <Section>
-        <Row icon="zap" iconColor={C.accent} title="Energy" sub={`Level ${s.energy?.level ?? 0} · toplam ${s.energy?.total ?? 0} Energy`} onPress={() => go('energy')} last />
+        <Row icon="zap" iconColor={C.accent} title="Energy" sub={`Level ${s.energy?.level ?? 0} · toplam ${s.energy?.total ?? 0} Energy`} onPress={() => go('energy')} />
+        <Row icon="star" title="Seviye sıralaması" sub="Bu sunucuda en çok XP kazananlar" onPress={() => router.push({ pathname: '/siralama' as any, params: { sunucu: s.id } })} last />
       </Section>}
       <Section title="Sunucu">
         {can(s, 'manageServer') && <Row icon="settings" title="Genel ayarlar" sub="Ad, simge, küfür filtresi, yavaş mod" onPress={() => go('genel')} />}
