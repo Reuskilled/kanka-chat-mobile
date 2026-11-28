@@ -17,7 +17,7 @@ const BADGE_FALLBACK: Record<string, [string, string, string]> = {
   beta: ['🧪', 'Beta Tester', 'Kanka betasındaki ilk 300 kişiden biri'], ekip: ['🛡️', 'Kanka Ekibi', 'Kanka Chat moderasyon ekibinde'],
   avci: ['🐞', 'Hata Avcısı', 'Kanka HQ’da önemli bir hatayı bulup ekibe bildirdi'], dev: ['🤖', 'Bot Geliştirici', 'Kanka bot sisteminin beta geliştiricisi'],
   partner: ['🤝', 'Kanka Partner', 'Kanka’nın iş birliği yaptığı bir sunucunun sahibi'], yildiz: ['⭐', 'Yıldız Sunucu', 'Yıldız kademesine ulaşmış bir sunucunun sahibi'],
-  arena: ['🏆', 'Arena Şampiyonu', 'Kanka Arena genel sıralamasında ilk 10'],
+  arena: ['🏆', 'Arena Şampiyonu', 'Kanka Arena genel sıralamasında ilk 10'], mobil: ['📱', 'Cep Öncüsü', 'Telefon uygulamasını mağazaya çıkmadan önce deneyen ilk kankalardan'],
 };
 
 function Row({ r, i, k }: { r: TopRow; i: number; k: 'lvl' | 'stk' | 'srv' }) {
