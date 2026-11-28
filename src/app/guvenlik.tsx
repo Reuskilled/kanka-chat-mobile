@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { changeName, changePassword, sessKill, sessList, setEmail, tfaDisable, tfaEnable, tfaNewBackup, tfaSetup, tfaStatus, useKanka, statPrefs, exportData, useReady, type Sess } from '@/lib/kanka';
+import { changeName, changePassword, sessKill, sessList, setEmail, tfaDisable, tfaEnable, tfaNewBackup, tfaSetup, tfaStatus, useKanka, statPrefs, exportData, ask, useReady, type Sess } from '@/lib/kanka';
 import { Screen, Section, Row, Sheet, ToggleRow } from '@/components/AdminUI';
 import { setLockOn, useLock } from '@/lib/lock';
 import { T, Field, Button } from '@/components/ui';
@@ -59,6 +59,9 @@ export default function Guvenlik() {
     { text: 'Vazgeç', style: 'cancel' },
     { text: 'Sil', style: 'destructive', onPress: async () => { const e = await statPrefs({ wipe: true }); Alert.alert(e ? 'Olmadı' : 'Tamam', e || 'Sayıların silindi.'); } },
   ]);
+  const [trash, setTrash] = useState<{ id: string; name: string; members: number; left: number }[] | null>(null);
+  const openTrash = async () => setTrash((await ask<any[]>('trashList')) || []);
+  const restore = async (sid: string) => { const r = await ask<{ ok?: boolean; error?: string }>('serverRestore', { serverId: sid }); if (!r?.ok) return Alert.alert('Olmadı', r?.error || 'Bağlantı yok'); setTrash(null); Alert.alert('Tamam', 'Sunucu geri geldi 🎉'); };
   const download = async () => {
     const r = await exportData(); if (!r?.ok) return Alert.alert('Olmadı', r?.error || 'Bağlantı yok');
     try { const uri = await saveTemp(`kanka-verilerim-${me}.json`, new TextEncoder().encode(JSON.stringify(r.data, null, 2)), 'application/json'); await shareLocal(uri, 'application/json', 'Kanka verilerim'); }
@@ -95,8 +98,17 @@ export default function Guvenlik() {
         <ToggleRow title="Yıl özetim için say" sub="31 Aralık’ta Kanka Wrapped" value={!acct.wrapOff} onChange={v => runPref({ wrapOff: !v })} />
         <ToggleRow title="Zevk eşleşmesi" sub="Müzik ve oyun zevkine göre kanka önerisi" value={!acct.matchOff} onChange={v => runPref({ matchOff: !v })} />
         <Row icon="trash" title="Bu yılın sayılarını sil" onPress={wipe} />
-        <Row icon="file" title="Verilerimi indir" sub="Profilin, sunucuların ve mesajların (JSON)" onPress={download} last />
+        <Row icon="file" title="Verilerimi indir" sub="Profilin, sunucuların ve mesajların (JSON)" onPress={download} />
+        <Row icon="trash" title="Silinen sunucular" sub="7 gün içinde geri getirebilirsin" onPress={openTrash} last />
       </Section>
+      <Sheet open={trash !== null} onClose={() => setTrash(null)} title="Silinen sunucular">
+        {!trash?.length ? <T style={{ color: C.muted }}>Çöp kutusunda sunucun yok.</T> : (
+          <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}>
+            {trash.map((t, i) => <Row key={t.id} icon="clock" title={t.name} sub={`${t.members} üye · ${t.left} gün kaldı`} last={i === trash.length - 1}
+              right={<Button title="Geri getir" kind="ghost" style={{ height: 36, paddingHorizontal: 12 }} onPress={() => restore(t.id)} />} />)}
+          </View>
+        )}
+      </Sheet>
 
       <Sheet open={open === 'name'} onClose={close} title="Kullanıcı adını değiştir">
         <T style={{ color: C.muted, fontSize: 13.5 }}>Haftada bir değiştirebilirsin. Eski adın bir süre başkası tarafından alınamaz.</T>

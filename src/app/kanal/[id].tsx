@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { type Att, type Voice, ask, dmAppCmds, msgLink, sendKind, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, takeShare, typing, unlockE2E, useKanka } from '@/lib/kanka';
+import { type Att, type Voice, ask, dmAppCmds, msgLink, sendKind, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, takeShare, typing, unlockE2E, useKanka, openWelcome } from '@/lib/kanka';
 import type { AppCmd, Msg } from '@/lib/types';
 import { dayLabel } from '@/lib/time';
 import { T, IconButton } from '@/components/ui';
@@ -26,6 +26,7 @@ const EMPTY: Msg[] = [];
 
 type Row = { k: 'm'; m: Msg; head: boolean } | { k: 'd'; id: string; label: string };
 
+const fmtLeft = (t: number) => { const m = Math.max(1, Math.round((t - Date.now()) / 60e3)); return m < 60 ? `${m} dk kaldı` : m < 1440 ? `${Math.round(m / 60)} saat kaldı` : `${Math.round(m / 1440)} gün kaldı`; };
 export default function Kanal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -191,6 +192,18 @@ export default function Kanal() {
           </View>
         </View>
       )}
+      {!!f && (f.server.sec?.length || (f.server.welcome?.enabled && !f.server.accepted)) ? (
+        <View style={{ marginHorizontal: 10, marginBottom: 6, padding: 12, borderRadius: 14, backgroundColor: C.card, gap: 6 }}>
+          {f.server.sec?.length ? <>
+            <T style={{ fontFamily: F.heavy, fontSize: 13.5 }}>Bu sunucuda yazmak için:</T>
+            {f.server.sec.map(x => <T key={x.k} style={{ fontSize: 13, color: C.muted }}>• {x.t}{x.until ? ` (${fmtLeft(x.until)})` : ''}</T>)}
+            {f.server.sec.some(x => x.k === 'email' || x.k === 'tfa') && <Pressable accessibilityRole="button" onPress={() => router.push('/guvenlik' as any)}><T style={{ fontSize: 13, color: C.accent, fontFamily: F.heavy }}>Hesap ayarlarına git</T></Pressable>}
+          </> : <Pressable accessibilityRole="button" onPress={() => openWelcome(f.server.id)}>
+            <T style={{ fontSize: 13.5, fontFamily: F.heavy }}>{f.server.apply === 'bekliyor' ? 'Katılım başvurun inceleniyor' : 'Yazmak için önce sunucu kurallarını kabul et'}</T>
+            <T style={{ fontSize: 13, color: C.accent, fontFamily: F.heavy }}>{f.server.apply === 'bekliyor' ? 'Ayrıntılar' : 'Kuralları gör'}</T>
+          </Pressable>}
+        </View>
+      ) : null}
       {!!err && <T accessibilityLiveRegion="polite" style={{ paddingHorizontal: 18, paddingBottom: 6, fontSize: 13, color: '#f87171', fontFamily: F.bold }}>{err}</T>}
       {reply && (
         <View style={{ marginHorizontal: 10, paddingHorizontal: 12, paddingVertical: 8, borderTopLeftRadius: 14, borderTopRightRadius: 14, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 8 }}>

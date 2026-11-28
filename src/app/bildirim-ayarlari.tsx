@@ -16,6 +16,7 @@ const MUTE: [number, string][] = [[0, 'Kapalı'], [1, '1 saat'], [8, '8 saat'], 
 
 const isMuted = (p: Prefs | null, id: string) => !!p?.muted?.includes(id);
 const until = (p: Prefs | null, id: string) => p?.muteUntil?.[id] || 0;
+const nearest = (u: number) => { const left = u - Date.now(); return [1, 8, 24].reduce((b, h) => (Math.abs(left - h * 3600e3) < Math.abs(left - b * 3600e3) ? h : b), 1); };
 function muteText(p: Prefs | null, id: string) {
   if (!isMuted(p, id)) return null;
   const u = until(p, id); if (!u) return 'Susturuldu';
@@ -58,7 +59,7 @@ function SrvIcon({ s }: { s: Server }) {
 function SrvSettings({ s, prefs, save }: { s: Server; prefs: Prefs | null; save: (f: (p: Prefs) => Prefs) => void }) {
   const lvl = (prefs?.srv?.[s.id]?.lvl as Lvl) || 'mentions';
   const m = isMuted(prefs, s.id), u = until(prefs, s.id);
-  const muteVal = !m ? 0 : !u ? -1 : MUTE.reduce((best, [h]) => (h > 0 && Math.abs(u - Date.now() - h * 3600e3) < Math.abs(u - Date.now() - best * 3600e3) ? h : best), 1);
+  const muteVal = !m ? 0 : !u ? -1 : nearest(u);
   const setLvl = (v: Lvl) => save(p => { const srv = { ...(p.srv || {}) }; const o = { ...(srv[s.id] || {}) }; if (v === 'mentions') delete o.lvl; else o.lvl = v; if (Object.keys(o).length) srv[s.id] = o; else delete srv[s.id]; return { ...p, srv }; });
   const setMute = (h: number) => save(p => {
     const muted = (p.muted || []).filter(x => x !== s.id), mu = { ...(p.muteUntil || {}) }; delete mu[s.id];

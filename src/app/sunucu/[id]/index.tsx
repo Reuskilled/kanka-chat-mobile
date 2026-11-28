@@ -1,4 +1,4 @@
-import { Alert, Share, View } from 'react-native';
+import { Alert, Share } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useKanka, useSparkSatis } from '@/lib/kanka';
@@ -23,6 +23,9 @@ export default function SunucuMenu() {
   const admin = canAdmin(s);
   const extras = ([
     can(s, 'manageServer') && ['karsilama', 'smile', 'Hoş geldin ekranı', s.welcome?.enabled ? 'Açık' : 'Yeni gelenlere mesaj, kurallar, odalar'],
+    can(s, 'manageServer') && !s.public && ['katilim', 'shield', 'Katılım güvenliği', s.gate?.approval ? 'Onaylı katılım açık' : s.secLevel ? `Seviye ${s.secLevel}` : 'Hesap şartları, sorular, onay'],
+    isMod(s) && !s.public && !!s.gate?.approval && ['basvurular', 'users', 'Başvurular', 'Onay bekleyenler'],
+    can(s, 'manageServer') && !s.public && ['kesif', 'search', 'Keşif', s.discoverable ? 'Keşfette görünüyor' : 'Keşfet’te listelenmek için'],
     can(s, 'manageServer') && !s.public && ['seviyeler', 'star', 'Seviyeler', 'Duyuru ve seviye rol ödülleri'],
     (can(s, 'manageEmojis') || can(s, 'manageServer')) && ['emojiler', 'smile', 'Emojiler', `${Object.keys(s.emojis || {}).length} özel emoji`],
     ['ses-paneli', 'speaker', 'Ses paneli', `${(s.sounds || []).length} ses`],
@@ -59,7 +62,7 @@ export default function SunucuMenu() {
         {!s.public && <Row icon="sparkle" title="Sunucunun yılı" sub="Kanka Wrapped: bu yıl burada neler oldu" onPress={() => router.push({ pathname: '/wrapped', params: { server: s.id } })} last />}
       </Section>
       {!s.public && !isOwner(s) && <Section><Row icon="logout" title="Sunucudan ayrıl" danger onPress={leave} last /></Section>}
-      {isOwner(s) && <View style={{ paddingHorizontal: 4 }}><T style={{ fontSize: 12.5, color: C.faint }}>Sahipliği devretmek ve sunucuyu silmek şifre onayı gerektirdiği için webden yapılır.</T></View>}
+      {isOwner(s) && !s.public && <Section><Row icon="crown" title="Sahiplik ve silme" sub="Sahipliği devret ya da sunucuyu sil" danger onPress={() => go('sahiplik')} last /></Section>}
     </Screen>
   );
 }

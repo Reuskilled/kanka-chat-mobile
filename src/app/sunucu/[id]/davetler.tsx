@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Share, View } from 'react-native';
+import { Alert, Share, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { ask, useKanka, useReady } from '@/lib/kanka';
-import { act, fmtAgo } from '@/lib/admin';
+import { act, fmtAgo, isOwner } from '@/lib/admin';
 import { SERVER } from '@/lib/config';
 import { C, F } from '@/lib/theme';
 import { Screen, Section, Row, Sheet, Chips, ToggleRow, Empty } from '@/components/AdminUI';
@@ -39,6 +39,14 @@ export default function Davetler() {
   };
   const revoke = (c: string) => Alert.alert('Linki iptal et', 'Bu link artık çalışmayacak.', [
     { text: 'Vazgeç', style: 'cancel' }, { text: 'İptal et', style: 'destructive', onPress: async () => { const e = await act('invRevoke', { serverId: id, code: c }); if (e) Alert.alert('Olmadı', e); load(); } }]);
+  const [vOpen, setVOpen] = useState(false), [slug, setSlug] = useState('');
+  const reset = () => Alert.alert('Ana linki yenile', 'Eski ana link hemen çalışmaz olur. Yeni link oluşturulsun mu?', [
+    { text: 'Vazgeç', style: 'cancel' }, { text: 'Yenile', style: 'destructive', onPress: async () => { const r = await ask<{ error?: string; invite?: string }>('resetInvite', id); if (r?.error) return Alert.alert('Olmadı', r.error); load(); if (r?.invite) share(r.invite); } }]);
+  const saveVanity = async () => {
+    setBusy(true); const r = await ask<{ error?: string; vanity?: string | null }>('srvVanity', { serverId: id, slug }); setBusy(false);
+    if (r?.error) return Alert.alert('Olmadı', r.error);
+    setVOpen(false); Alert.alert('Tamam', r?.vanity ? `Artık kankahq.com/${r.vanity} ile katılınabilir.` : 'Özel link kaldırıldı.');
+  };
   const live = (data?.list || []).filter(i => i.ok), old = (data?.list || []).filter(i => !i.ok);
   return (
     <Screen title="Davet linkleri" sub={s?.name} right={<IconButton label="Yeni link" onPress={() => setOpen(true)}><Icon name="plus" stroke={2.4} /></IconButton>}>
@@ -46,6 +54,12 @@ export default function Davetler() {
         <Section title="Ana link" hint="Süresiz, herkesle paylaşabileceğin link.">
           <Row icon="userAdd" iconColor={C.accent} title={link(data.main.code).replace(/^https?:\/\//, '')} sub={`${data.main.uses} kişi bununla katıldı`} onPress={() => share(data.main!.code)}
             right={<IconButton size={36} label="Kopyala" onPress={() => copy(data.main!.code)}><Icon name="file" size={18} color={C.muted} /></IconButton>} last />
+        </Section>
+      )}
+      {!!s && !s.public && (
+        <Section hint="Yenilersen eski ana link artık çalışmaz (sızdıysa işe yarar).">
+          <Row icon="star" title="Özel link" sub={s.vanity ? `kankahq.com/${s.vanity}` : 'kankahq.com/isim (Yıldız, Partner ya da Energy Level 3)'} onPress={isOwner(s) ? () => { setSlug(s.vanity || ''); setVOpen(true); } : undefined} />
+          <Row icon="clock" title="Ana linki yenile" danger onPress={reset} last />
         </Section>
       )}
       <Section title={`Özel linkler (${live.length})`}>
@@ -61,6 +75,15 @@ export default function Davetler() {
         <View style={{ gap: 8 }}><T style={{ fontSize: 13, fontFamily: F.heavy, color: C.muted }}>En çok kaç kişi</T><Chips value={max} options={MAX} onChange={setMax} /></View>
         <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}><ToggleRow title="Geçici üyelik" sub="Çevrimdışı olunca sunucudan çıkar (rol verilmediyse)" value={temp} onChange={setTemp} last /></View>
         <Button title="Oluştur ve paylaş" busy={busy} onPress={create} />
+      </Sheet>
+      <Sheet open={vOpen} onClose={() => setVOpen(false)} title="Özel link">
+        <T style={{ color: C.muted }}>3-24 karakter: küçük harf, rakam ve tire. Boş bırakırsan özel link kaldırılır.</T>
+        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 12, backgroundColor: C.field, paddingHorizontal: 14 }}>
+          <T style={{ color: C.muted }}>kankahq.com/</T>
+          <TextInput value={slug} onChangeText={v => setSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24))} autoCapitalize="none" autoCorrect={false} accessibilityLabel="Özel link" placeholder="isim" placeholderTextColor={C.faint}
+            style={{ flex: 1, minHeight: 46, color: C.ink, fontFamily: F.bold, fontSize: 15 }} />
+        </View>
+        <Button title="Kaydet" busy={busy} onPress={saveVanity} />
       </Sheet>
     </Screen>
   );
