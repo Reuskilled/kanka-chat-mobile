@@ -13,7 +13,7 @@ import { T } from './ui';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { BotBadge, CompRows, EmbedCard, EphFooter } from './BotParts';
-import { FwdTag, MsgKind, RichText, ThreadChip } from './MsgExtras';
+import { FwdTag, MsgKind, RichText, ThreadChip, TicketActions } from './MsgExtras';
 
 // Mesaj metni: @bahsetmeler vurgulu, linkler tıklanır
 function Reactions({ m, me }: { m: Msg; me: string | null }) {
@@ -93,6 +93,7 @@ function Body({ m: m0, me, chId }: { m: Msg; me: string | null; chId?: string })
       ))}
       {(m.embeds || []).map((e, i) => <EmbedCard key={'e' + i} e={e} />)}
       {!!m.comps?.length && <CompRows m={m} chId={chId || m.channelId || ''} />}
+      <TicketActions m={m} chId={chId || m.channelId} />
       {m.ephemeral && <EphFooter m={m} chId={chId || m.channelId || ''} />}
     </View>
   );
