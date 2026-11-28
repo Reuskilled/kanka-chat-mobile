@@ -63,6 +63,9 @@ export type State = {
   appForm: AppForm | null; // botun açtığı form
   selServer: { id: string; n: number } | null;
   myEmail: string | null; // ana ekranda açılacak sunucu (katılınca / kurunca)
+  toast: { t: string; n: number } | null; // sunucudan gelen kısa bilgi (ör. başvurun onaylandı)
+  watch: Record<string, WatchSt | null>; // birlikte izle (DM/grup)
+  vLive: Record<string, string[]>; // ses odalarında ekran yayını yapanlar
   acct: Acct; // giriş sesi, gizlilik tercihleri, sunucu etiketleri
 };
 export type TagDef = { t: string; i?: string; c?: string; st?: string; fx?: string; ad: string; simge?: string | null; simgeImg?: string | null };
@@ -71,7 +74,7 @@ export type Acct = { onb: Onb | null; entry: { s: string | null; id: string; nam
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, u15: null, needVeli: false, warns: [], welcomeFor: null, friends: [], reqIn: [], reqOut: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, vStage: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null, selServer: null, myEmail: null, acct: { onb: null, entry: null, wrapOff: false, matchOff: false, tagDefs: {}, tagCan: [] },
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, u15: null, needVeli: false, warns: [], welcomeFor: null, friends: [], reqIn: [], reqOut: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, vStage: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null, selServer: null, myEmail: null, toast: null, watch: {}, vLive: {}, acct: { onb: null, entry: null, wrapOff: false, matchOff: false, tagDefs: {}, tagCan: [] },
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -140,7 +143,7 @@ function applyLogin(r: LoginResult) {
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
     voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, u15: r.u15 ?? null, needVeli: !!r.needVeli, warns: r.warns || [], minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], reqIn: r.social?.reqIn || [], reqOut: r.social?.reqOut || [], blocked: r.social?.blocked || [], prefs: r.prefs || state.prefs, myEmail: (r as any).myEmail ?? state.myEmail,
-    acct: { onb: (r as any).onb || null, entry: (r as any).entrySound || null, wrapOff: !!(r as any).wrapOff, matchOff: !!(r as any).matchOff, tagDefs: (r as any).tagDefs || {}, tagCan: (r as any).tagCan || [] },
+    vLive: (r as any).live || {}, acct: { onb: (r as any).onb || null, entry: (r as any).entrySound || null, wrapOff: !!(r as any).wrapOff, matchOff: !!(r as any).matchOff, tagDefs: (r as any).tagDefs || {}, tagCan: (r as any).tagCan || [] },
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle
@@ -204,6 +207,9 @@ function onEvents(s: Socket) {
   }));
   s.on('social', (x: { friends?: string[]; reqIn?: string[]; reqOut?: string[]; blocked?: string[] }) => set({ friends: x?.friends || [], reqIn: x?.reqIn || [], reqOut: x?.reqOut || [], ...(x?.blocked ? { blocked: x.blocked } : {}) }));
   s.on('voiceState', (voice: Record<string, string[]>) => set({ voice }));
+  s.on('toast', (m: string) => { if (typeof m === 'string' && m && !(state.myVoice && /kamera|yayın|ekran|mikrofon|sesli|odada/i.test(m))) set(st => ({ toast: { t: m.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').slice(0, 200), n: (st.toast?.n || 0) + 1 } })); });
+  s.on('watch', (x: { channelId: string; state: WatchSt | null }) => x?.channelId && set(st => ({ watch: { ...st.watch, [x.channelId]: x.state } })));
+  s.on('voiceLive', (vLive: Record<string, string[]>) => set({ vLive: vLive || {} }));
   s.on('voiceFlags', (vflags: State['vflags']) => set({ vflags: vflags || {} }));
   s.on('ice', (ice: any[]) => set({ ice: ice || [] }));
   s.on('prefs', (p: Prefs) => p && set({ prefs: p }));
@@ -289,9 +295,9 @@ export async function join(chId: string): Promise<{ error?: string }> {
   set({ cur: chId });
   // Henüz bağlı/girişli değilsek (soğuk açılış, bildirime dokunma, kopma): giriş bitince applyLogin odaya kendisi girer
   if (!socket?.connected || state.phase !== 'in') return {};
-  const r = await ask<{ error?: string; messages?: Msg[] }>('join', chId);
+  const r = await ask<{ error?: string; messages?: Msg[]; watch?: WatchSt | null }>('join', chId);
   if (r?.error) return r;
-  set(st => ({ msgs: { ...st.msgs, [chId]: r.messages || [] }, more: { ...st.more, [chId]: (r.messages?.length || 0) >= 150 } }));
+  set(st => ({ watch: { ...st.watch, [chId]: r.watch || null }, msgs: { ...st.msgs, [chId]: r.messages || [] }, more: { ...st.more, [chId]: (r.messages?.length || 0) >= 150 } }));
   if (isPriv(chId)) e2e.enter(chId).then(() => decrypt(chId, state.msgs[chId] || [])); 
   return {};
 }
@@ -597,3 +603,14 @@ export async function onbSet(k: 'dismissed' | 'done' | 'seen') {
   if (r?.onb) setAcct({ onb: r.onb });
 }
 export const onbMarkInvite = (serverId?: string) => fire('onbMark', { k: 'invite', serverId });
+export type LiveInfo = { since?: number | null; q?: string | null; viewers?: number; audio?: boolean; thumb?: string | null; thumbAt?: number | null; locked?: boolean } | null;
+export const liveInfo = (name: string, ch: string) => ask<LiveInfo>('liveInfo', { name, ch });
+export type WatchSt = { videoId: string; playing: boolean; time: number; at: number; by: string };
+// Birlikte izle: sunucu sadece açık sohbete (cur) uygular
+export const watchStart = (url: string) => fire('watchSet', url);
+export const watchCtl = (playing: boolean, time: number) => {
+  const c = state.cur; if (c) set(st => ({ watch: { ...st.watch, [c]: st.watch[c] ? { ...st.watch[c]!, playing, time, at: Date.now(), by: st.me || '' } : null } }));
+  fire('watchCtl', { playing, time });
+};
+export const watchStop = () => fire('watchStop');
+export const showToast = (t: string | null) => set(st => ({ toast: t ? { t, n: (st.toast?.n || 0) + 1 } : null }));
