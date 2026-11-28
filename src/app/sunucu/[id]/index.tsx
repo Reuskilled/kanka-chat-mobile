@@ -21,6 +21,13 @@ export default function SunucuMenu() {
     { text: 'Ayrıl', style: 'destructive', onPress: async () => { const e = await act('leaveServer', s.id); if (e) Alert.alert('Ayrılamadın', e); else router.dismissAll(); } },
   ]);
   const admin = canAdmin(s);
+  const extras = ([
+    can(s, 'manageServer') && ['karsilama', 'smile', 'Hoş geldin ekranı', s.welcome?.enabled ? 'Açık' : 'Yeni gelenlere mesaj, kurallar, odalar'],
+    can(s, 'manageServer') && !s.public && ['seviyeler', 'star', 'Seviyeler', 'Duyuru ve seviye rol ödülleri'],
+    (can(s, 'manageEmojis') || can(s, 'manageServer')) && ['emojiler', 'smile', 'Emojiler', `${Object.keys(s.emojis || {}).length} özel emoji`],
+    ['ses-paneli', 'speaker', 'Ses paneli', `${(s.sounds || []).length} ses`],
+    (can(s, 'manageWebhooks') || can(s, 'manageServer')) && !s.public && ['webhooklar', 'zap', "Webhook'lar", 'Dış servisleri odalara bağla'],
+  ].filter(Boolean)) as [string, string, string, string][];
   return (
     <Screen title={s.name} sub={`${s.members.length} üye${isOwner(s) ? ' · sahibisin' : ''}`}>
       {!s.public && (
@@ -40,6 +47,7 @@ export default function SunucuMenu() {
         {can(s, 'manageServer') && !s.public && <Row icon="userAdd" title="Davet linkleri" sub="Süreli ya da sınırlı link oluştur" onPress={() => go('davetler')} />}
         {can(s, 'manageServer') && <Row icon="lock" title="Kanka Bot" sub={s.bot?.mod?.on ? `Koruma açık${s.bot.mod.spam ? ' · spam koruması açık' : ''}` : s.bot?.added ? 'Koruma kapalı' : 'Spam koruması, anti-nuke, filtreler'} onPress={() => go('bot')} last />}
       </Section>
+      {(extras.length > 0) && <Section title="Topluluk">{extras.map((x, i) => <Row key={x[0]} icon={x[1]} title={x[2]} sub={x[3]} onPress={() => go(x[0])} last={i === extras.length - 1} />)}</Section>}
       {admin && (
         <Section title="Moderasyon">
           {isMod(s) && <Row icon="bell" title="Şikayetler" sub="Üyelerin bildirdiği mesajlar" onPress={() => go('sikayetler')} />}
