@@ -28,4 +28,5 @@ npx serve -s /tmp/kmweb -l 8099
 - **R8 sınıf siliyor:** `plugins/with-proguard.js` keep kuralları içeriyor (webrtc, InCallManager, Room/WorkManager). WorkManager kuralı yokken 2.0.0.17 telefonda açılışta çöktü. Yeni yerel kütüphane eklersen çökme testine bak.
 - **iOS bildirim verisi:** `content.data` yerine `trigger.payload` içinde gelir.
 - **Web önizlemesi:** RN-web'de `Alert` çalışmıyor; `webAlert.web.ts` onu `confirm`/`alert`'e çeviriyor.
+- **Telefona özel parçalar:** Paylaşım menüsü `expo-sharing` ile (`src/app/expo-sharing.tsx`, sadece Android; iOS share extension app group ister). Linkler `src/app/+native-intent.tsx`'te yönlenir. Android'de kankahq.com linklerinin doğrudan uygulamada açılması için sunucuda `ANDROID_SHA256` ortam değişkenine Play uygulama imzalama anahtarının SHA-256'sı girilmeli (assetlinks.json). Biyometrik kilit `src/lib/lock.ts`. Android widget'ı `src/widget/` (giriş noktası `index.js` arka plan görevini kaydeder).
 - **Henüz yapılmadı:** iOS ekran paylaşımı (broadcast extension gerekiyor). CallKit de TestFlight'ta cihaz testinden sonraya kaldı.
