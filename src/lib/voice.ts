@@ -2,6 +2,8 @@
 // sunucu sadece bağlantı bilgilerini iletir ('signal'). Arama = "call:<sohbet>" adlı sesli oda + 'ring' bildirimi.
 // Bağlantı kurma "kibar/kaba" kuralıyla (perfect negotiation): iki taraf aynı anda teklif yaparsa kimliği küçük olan geri çekilir.
 import { Alert, AppState, Vibration } from 'react-native';
+import { createAudioPlayer } from 'expo-audio';
+import { abs } from './config';
 import { ask, fire, getState, type State, onSocket, setVoice, socketId, findChannel, displayName, dmPeers, afterAuth } from './kanka';
 import { router } from 'expo-router';
 import { RTCPeerConnection, mediaDevices, MediaStream, audioStart, audioStop, setSpeaker, bgStart, bgStop, webPlay, webStop } from './rtc';
@@ -31,8 +33,10 @@ function makePeer(sid: string): PC {
   Object.assign(pc, { _sid: sid, _polite: (socketId() || '') < sid, _making: false, _ignore: false });
   peers[sid] = pc;
   setTimeout(syncPeers);
-  localStream?.getTracks().forEach((t: any) => pc.addTrack(t, localStream));
-  if (videoStream) setTimeout(() => feedPeer(sid));
+  // Müzik botları ('~' ile başlar) sadece dinlenir: mikrofonu bota göndermek yükleme hattını boşuna doldurur (webdeki gibi)
+  if (sid.startsWith('~')) pc.addTransceiver('audio', { direction: 'recvonly' });
+  else localStream?.getTracks().forEach((t: any) => pc.addTrack(t, localStream));
+  if (videoStream && !sid.startsWith('~')) setTimeout(() => feedPeer(sid));
   pc.onicecandidate = (e: any) => { if (e.candidate) fire('signal', { to: sid, data: { ice: e.candidate } }); };
   pc.onnegotiationneeded = async () => {
     try { pc._making = true; await pc.setLocalDescription(); fire('signal', { to: sid, data: { sdp: pc.localDescription } }); }
@@ -75,7 +79,7 @@ function tune(pc: PC, tries = 0) {
   } catch {}
 }
 function feedPeer(sid: string) {
-  const pc = peers[sid]; if (!pc) return;
+  const pc = peers[sid]; if (!pc || sid.startsWith('~')) return;
   const share = !!videoStream && (videoKind === 'cam' || watchers.has(sid));
   const vt = share ? videoStream.getVideoTracks()[0] : null;
   if (pc._vsender) pc._vsender.replaceTrack(vt).catch(() => {});
@@ -173,10 +177,10 @@ export async function joinVoice(ch: string): Promise<{ error?: string }> {
   try {
     if (st().myVoice) await leaveVoice(false);
     try { localStream = await getMic(); } catch { return { error: 'Mikrofona erişilemedi. Ayarlardan Kanka\'ya mikrofon izni ver.' }; }
-    const r = await ask<{ error?: string; peers?: { sid: string; name: string; media?: { cam?: boolean; screen?: boolean } | null }[] }>('voiceJoin', ch);
+    const r = await ask<{ error?: string; stage?: { speakers: string[]; hands: string[] } | null; srvMuted?: boolean; peers?: { sid: string; name: string; media?: { cam?: boolean; screen?: boolean } | null }[] }>('voiceJoin', ch);
     if (r?.error) { localStream.getTracks().forEach((t: any) => t.stop()); localStream = null; return { error: r.error }; }
     await audioStart(st().speaker);
-    setVoice({ myVoice: ch, speaking: {} });
+    setVoice({ myVoice: ch, speaking: {}, vStage: r.stage || null, ...(r.srvMuted ? { muted: true } : {}) });
     applyMute();
     const vm: State['vMedia'] = {};
     for (const p of r.peers || []) { peerNames[p.sid] = p.name; if (p.media) vm[p.sid] = { name: p.name, cam: !!p.media.cam, screen: !!p.media.screen }; makePeer(p.sid); }
@@ -196,16 +200,18 @@ export async function leaveVoice(notify = true) {
   localStream?.getTracks().forEach((t: any) => t.stop()); localStream = null;
   if (notify && ch) fire('voiceLeave');
   audioStop(); bgStop();
-  setVoice({ myVoice: null, speaking: {}, outgoing: null, vPeers: [], vMedia: {}, vWatch: null, myCam: false, myScreen: false });
+  setVoice({ myVoice: null, speaking: {}, outgoing: null, vPeers: [], vMedia: {}, vWatch: null, myCam: false, myScreen: false, vStage: null });
 }
 
+// Sahnede konuşmacı değilsen mikrofonun kapalı kalır (dinleyici)
+export const isListener = () => { const s = st(); return !!s.vStage && !!s.me && !s.vStage.speakers.includes(s.me); };
 function applyMute() {
   const { muted, deaf } = st();
-  localStream?.getAudioTracks().forEach((t: any) => { t.enabled = !muted && !deaf; });
+  localStream?.getAudioTracks().forEach((t: any) => { t.enabled = !muted && !deaf && !isListener(); });
   for (const pc of Object.values(peers)) pc.getReceivers?.().forEach((r: any) => { if (r.track?.kind === 'audio') r.track.enabled = !deaf; });
-  if (st().myVoice) fire('vflags', { m: muted || deaf, d: deaf });
+  if (st().myVoice) fire('vflags', { m: muted || deaf || isListener(), d: deaf });
 }
-export function toggleMute() { const m = !st().muted; setVoice({ muted: m, ...(m ? {} : { deaf: false }) }); applyMute(); }
+export function toggleMute() { if (isListener()) { setVoice({ vToast: 'Sahnede dinleyicisin. Konuşmak için söz iste.' }); return; } const m = !st().muted; setVoice({ muted: m, ...(m ? {} : { deaf: false }) }); applyMute(); }
 export function toggleDeaf() { const d = !st().deaf; setVoice({ deaf: d }); applyMute(); }
 export function toggleSpeaker() { const s = !st().speaker; setVoice({ speaker: s }); setSpeaker(s); }
 
@@ -287,6 +293,19 @@ export function wireVoice() {
     } catch (e) { console.warn('ses bağlantısı', e); }
   });
   onSocket('voiceLeft', (sid: string) => { closePeer(sid); });
+  onSocket('stage', ({ ch, speakers, hands }: { ch: string; speakers: string[]; hands: string[] }) => {
+    if (st().myVoice !== ch) return;
+    const me = st().me || '', was = !!st().vStage?.speakers.includes(me), now = speakers.includes(me);
+    setVoice({ vStage: { speakers, hands }, ...(was !== now ? { vToast: now ? '🎤 Sahnedesin, artık konuşabilirsin' : 'Sahneden indin, dinleyicisin', ...(now ? { muted: false } : {}) } : {}) });
+    applyMute();
+  });
+  // Ses paneli: biri ses çalınca odadaki herkes kendi cihazında çalar
+  onSocket('sbPlay', (d: { by: string; url: string; vol?: number; name?: string; emoji?: string; entry?: boolean }) => {
+    if (!st().myVoice || st().deaf) return;
+    const u = abs(d.url); if (!u) return;
+    try { const pl = createAudioPlayer(u); pl.volume = Math.max(0, Math.min(1, d.vol ?? 0.8)); pl.play(); setTimeout(() => { try { pl.remove(); } catch {} }, 8000); } catch {}
+    if (!d.entry && d.by !== st().me) setVoice({ vToast: `${displayName(d.by)}: ${d.emoji || '🔊'} ${d.name || ''}` });
+  });
   onSocket('voiceKicked', () => { leaveVoice(false); });
   onSocket('voiceMoveTo', ({ ch }: { ch: string }) => { joinVoice(ch); });
   onSocket('srvMute', ({ on }: { on: boolean }) => { if (on) { setVoice({ muted: true }); applyMute(); } });
@@ -311,4 +330,37 @@ export function wireVoice() {
   // Android arka planda kamerayı kapatır: karşı tarafta donmuş görüntü kalmasın diye biz de kapatırız
   AppState.addEventListener('change', s => { if (s === 'background' && videoKind === 'cam') { stopVideo(); setVoice({ vToast: 'Uygulama arka plana geçince kameran kapandı.' }); } });
   AppState.addEventListener('change', s => { if (s === 'active' && st().myVoice) for (const pc of Object.values(peers)) if (pc.connectionState !== 'connected') pc.restartIce?.(); });
+}
+
+// ---- Ses paneli, sahne, yetkili işlemleri ----
+export const SB_DEFAULTS: { id: string; name: string; emoji: string }[] = [['korna', 'Korna', '📯'], ['ba-dum-tss', 'Ba dum tss', '🥁'], ['alkis', 'Alkış', '👏'], ['tada', 'Tada', '🎉'], ['yanlis', 'Yanlış', '❌'], ['dramatik', 'Dramatik', '😱'],
+  ['kriket', 'Sessizlik', '🦗'], ['ding', 'Ding', '🔔'], ['boing', 'Boing', '🤸'], ['vuuu', 'Vuuu', '💨'], ['seviye', 'Seviye atladı', '🆙'], ['pop', 'Pop', '🫧']].map(([f, name, emoji]) => ({ id: 'd:' + f, name, emoji }));
+export async function sbPlay(id: string, from?: string) { const r = await ask<{ error?: string }>('sbPlay', { id, from }); return r?.error || null; }
+export async function stageHand(on: boolean) { const r = await ask<{ error?: string }>('stageHand', on); return r?.error || null; }
+export async function stageSpeaker(name: string, on: boolean) { const r = await ask<{ error?: string }>('stageSpeaker', { name, on }); return r?.error || null; }
+export async function voiceMod(serverId: string, name: string, action: 'mute' | 'unmute' | 'disconnect' | 'move', to?: string) { const r = await ask<{ error?: string }>('voiceMod', { serverId, name, action, to }); return r?.error || null; }
+
+// ---- Bağlantı istatistikleri (ping penceresi) ----
+export type PeerStat = { name: string; ms: number | null; loss: number; jit: number; relay: boolean };
+const lostPrev: Record<string, { l: number; r: number }> = {};
+export async function voiceStats(): Promise<{ per: PeerStat[]; server: number | null }> {
+  const per: PeerStat[] = [];
+  for (const [sid, pc] of Object.entries(peers)) {
+    try {
+      const rep = await pc.getStats(); let rtt: number | null = null, pair: any = null, relay = false, jit = 0, lost = 0, recv = 0;
+      const all: any[] = []; rep.forEach((r: any) => all.push(r));
+      for (const r of all) {
+        if (r.type === 'candidate-pair' && (r.nominated || r.selected) && r.state === 'succeeded') pair = r;
+        if (r.type === 'remote-inbound-rtp' && r.kind === 'audio' && r.roundTripTime != null && rtt == null) rtt = r.roundTripTime * 1000;
+        if (r.type === 'inbound-rtp' && r.kind === 'audio') { jit = Math.max(jit, (r.jitter || 0) * 1000); lost += r.packetsLost || 0; recv += r.packetsReceived || 0; }
+      }
+      if (pair?.currentRoundTripTime != null) rtt = pair.currentRoundTripTime * 1000;
+      if (pair) { const lc = all.find(x => x.id === pair.localCandidateId), rc = all.find(x => x.id === pair.remoteCandidateId); relay = lc?.candidateType === 'relay' || rc?.candidateType === 'relay'; }
+      const pv = lostPrev[sid] || { l: 0, r: 0 }; lostPrev[sid] = { l: lost, r: recv };
+      const dl = lost - pv.l, dr = recv - pv.r, loss = dl + dr > 0 ? (dl / (dl + dr)) * 100 : 0;
+      per.push({ name: peerNames[sid] || '?', ms: rtt == null ? null : Math.round(rtt), loss: Math.max(0, loss), jit: Math.round(jit), relay });
+    } catch {}
+  }
+  const t0 = Date.now(); const r = await ask<{ error?: string }>('vping');
+  return { per, server: r && !(r as any).error ? Date.now() - t0 : null };
 }
