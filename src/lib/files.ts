@@ -23,3 +23,9 @@ export async function openLocal(uri: string, mime?: string, title?: string): Pro
   if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: mime, dialogTitle: title });
   else throw new Error('Bu dosyayı açacak uygulama yok');
 }
+
+// Dosyayı paylaş menüsüyle dışarı ver (indir, Drive'a kaydet, gönder)
+export async function shareLocal(uri: string, mime?: string, title?: string): Promise<void> {
+  if (!(await Sharing.isAvailableAsync())) throw new Error('Bu telefonda paylaşma açık değil');
+  await Sharing.shareAsync(uri, { mimeType: mime, dialogTitle: title });
+}

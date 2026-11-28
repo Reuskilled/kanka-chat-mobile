@@ -54,6 +54,10 @@ export default function SunucuMenu() {
           {(can(s, 'viewAudit') || isMod(s)) && <Row icon="clock" title="Kayıt defteri" sub="Kim neyi değiştirdi" onPress={() => go('kayit')} last />}
         </Section>
       )}
+      <Section>
+        <Row icon="bell" title="Bildirimler" sub="Tüm mesajlar, sadece etiketler ya da sustur" onPress={() => router.push({ pathname: '/bildirim-ayarlari', params: { sid: s.id } })} last={!!s.public} />
+        {!s.public && <Row icon="sparkle" title="Sunucunun yılı" sub="Kanka Wrapped: bu yıl burada neler oldu" onPress={() => router.push({ pathname: '/wrapped', params: { server: s.id } })} last />}
+      </Section>
       {!s.public && !isOwner(s) && <Section><Row icon="logout" title="Sunucudan ayrıl" danger onPress={leave} last /></Section>}
       {isOwner(s) && <View style={{ paddingHorizontal: 4 }}><T style={{ fontSize: 12.5, color: C.faint }}>Sahipliği devretmek ve sunucuyu silmek şifre onayı gerektirdiği için webden yapılır.</T></View>}
     </Screen>

@@ -17,6 +17,7 @@ import { Avatar } from '@/components/Avatar';
 import { act, can, canAdmin, inviteUrl } from '@/lib/admin';
 import { Sheet, Row } from '@/components/AdminUI';
 import { maybeWelcome } from '@/components/WelcomeSheet';
+import { OnbCard } from '@/components/OnbCard';
 import { AddSheet, CatSheet, ChannelSheet, moveCat, moveIn } from '@/components/ChannelAdmin';
 
 const STEP = 58; // simge (48) + aralık (10)
@@ -173,7 +174,7 @@ export default function Sunucular() {
         {!server ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 }}>
             <T style={{ fontFamily: F.black, fontSize: 18 }}>Henüz bir sunucun yok</T>
-            <T style={{ color: C.muted, textAlign: 'center' }}>Bir davet linkiyle katıl ya da webden kendi sunucunu kur.</T>
+            <T style={{ color: C.muted, textAlign: 'center' }}>Bir davet linkiyle katıl ya da + ile kendi sunucunu kur.</T>
           </View>
         ) : (
           <>
@@ -188,6 +189,7 @@ export default function Sunucular() {
               <T style={{ fontSize: 12.5, color: '#d4d4d8', marginTop: 2 }}>{server.members.length} üye · {online} çevrimiçi</T>
             </View>
             <ScrollView contentContainerStyle={{ padding: 8, paddingBottom: 24 }}>
+              <OnbCard serverId={server.id} />
               {groups.map(g => (
                 <View key={g.id}>
                   {!!g.name && (
@@ -232,6 +234,7 @@ function ServerMenu({ s, index, count, onClose, onMove }: { s: Server; index: nu
         <Row icon="star" title="En üste taşı" onPress={index > 0 ? () => { onMove(0); onClose(); } : undefined} last />
       </View>
       <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}>
+        <Row icon="bell" title="Bildirimler" onPress={() => { onClose(); router.push({ pathname: '/bildirim-ayarlari', params: { sid: s.id } }); }} />
         <Row icon={canAdmin(s) ? 'settings' : 'userAdd'} title={canAdmin(s) ? 'Sunucu ayarları' : 'Davet et ve bilgiler'} onPress={() => { onClose(); router.push(`/sunucu/${s.id}` as any); }} />
         {!!(s.invite || s.vanity) && <Row icon="userAdd" title="Davet linkini kopyala" onPress={() => { Clipboard.setStringAsync(inviteUrl(s)); onClose(); }} />}
         {!s.public && s.owner !== getMe() && <Row icon="logout" title="Sunucudan ayrıl" danger onPress={leave} last />}

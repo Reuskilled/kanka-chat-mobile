@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, Linking } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '@/lib/theme';
 import { SERVER } from '@/lib/config';
@@ -30,7 +30,8 @@ function Check({ on, onToggle, children }: { on: boolean; onToggle: () => void; 
 }
 
 export default function Kayit() {
-  const [f, setF] = useState({ name: '', email: '', password: '', dob: '', code: '' });
+  const { kod: kodQ } = useLocalSearchParams<{ kod?: string }>();
+  const [f, setF] = useState({ name: '', email: '', password: '', dob: '', code: typeof kodQ === 'string' ? kodQ.toUpperCase().slice(0, 40) : '' });
   const [terms, setTerms] = useState(false);
   const [veli, setVeli] = useState(false);
   const [busy, setBusy] = useState(false);

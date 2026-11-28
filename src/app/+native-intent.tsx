@@ -1,5 +1,5 @@
 // Uygulama bir linkle açılınca: davet linkleri sunucu önizlemesine, site linkleri ilgili ekrana gider
-// kankahq.com/davet/KOD · kankahq.com/app?davet=KOD · kankahq.com/s/isim · kanka://davet/KOD
+// kankahq.com/kod/KOD (kayıt davet kodu) · kankahq.com/davet/KOD · kankahq.com/app?davet=KOD · kankahq.com/s/isim · kanka://davet/KOD
 const SITE = /^https?:\/\/(?:www\.)?kankahq\.com/i;
 
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
@@ -8,6 +8,8 @@ export function redirectSystemPath({ path }: { path: string; initial: boolean })
     if (/^\/?expo-sharing/i.test(p)) return '/expo-sharing';
     const inv = /^\/?(?:davet\/|app\?(?:.*&)?davet=)([A-Za-z0-9_-]{3,40})/i.exec(p);
     if (inv) return `/sunucu-ekle?kod=${encodeURIComponent(inv[1])}`;
+    const kod = /^\/?kod\/([A-Za-z0-9_-]{3,40})/i.exec(p);
+    if (kod) return `/kayit?kod=${encodeURIComponent(kod[1])}`;
     const vanity = /^\/?s\/([a-z0-9-]{2,40})\/?$/i.exec(p);
     if (vanity) return `/sunucu-ekle?kod=${encodeURIComponent('kankahq.com/' + vanity[1].toLowerCase())}`;
     if (SITE.test(path)) {

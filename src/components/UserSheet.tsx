@@ -1,4 +1,5 @@
 // Kullanıcı kartı: mesajdaki avatara/isme ya da üye listesine dokununca. Mesaj gönder, engelle, şikayet et.
+import { UserTag } from './TagChip';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
@@ -72,6 +73,7 @@ export function UserSheet() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <T numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.black, fontSize: 20 }}>{u?.displayName || name}</T>
             {bot && <BotBadge verified={!!bot.dogrulandi} />}
+            <UserTag name={name} big onPress={sid => { close(); router.push({ pathname: '/etiket', params: { sid } }); }} />
           </View>
           <T style={{ color: C.muted }}>@{name}{u?.pronouns ? ' · ' + u.pronouns : ''}{blocked ? ' · engelledin' : ''}</T>
         </View>

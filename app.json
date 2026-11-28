@@ -47,6 +47,11 @@
               "scheme": "https",
               "host": "kankahq.com",
               "pathPrefix": "/s/"
+            },
+            {
+              "scheme": "https",
+              "host": "kankahq.com",
+              "pathPrefix": "/kod/"
             }
           ],
           "category": [
