@@ -18,6 +18,10 @@ const RULES = `
 -keep class androidx.work.** { *; }
 -dontwarn androidx.work.**
 -keep class * implements androidx.startup.Initializer { <init>(); }
+# kanka: ana ekran widget'ı ve biyometrik kilit
+-keep class com.reactnativeandroidwidget.** { *; }
+-keep class expo.modules.localauthentication.** { *; }
+-keep class expo.modules.sharing.** { *; }
 `;
 
 module.exports = function withProguard(config) {

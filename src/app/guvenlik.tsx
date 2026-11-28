@@ -1,10 +1,11 @@
 // Hesap ve güvenlik: e-posta, şifre, kullanıcı adı, iki adımlı doğrulama, açık oturumlar
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, Pressable, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
 import { changeName, changePassword, sessKill, sessList, setEmail, tfaDisable, tfaEnable, tfaNewBackup, tfaSetup, tfaStatus, useKanka, useReady, type Sess } from '@/lib/kanka';
-import { Screen, Section, Row, Sheet } from '@/components/AdminUI';
+import { Screen, Section, Row, Sheet, ToggleRow } from '@/components/AdminUI';
+import { setLockOn, useLock } from '@/lib/lock';
 import { T, Field, Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { when } from '@/lib/time';
@@ -39,6 +40,7 @@ export default function Guvenlik() {
   useEffect(() => { if (ready) load(); }, [ready, load]);
   const show = (o: Open) => { setA(''); setB(''); setC(''); setErr(''); setSetup(null); setBackup(null); setNeedCode(false); setOpen(o); };
   const close = () => setOpen(null);
+  const lockOn = useLock(st => st.on);
   const run = async (fn: () => Promise<string | null | undefined>) => { setBusy(true); setErr(''); const e = await fn(); setBusy(false); if (e) setErr(e); };
 
   const kill = (s: Sess) => Alert.alert('Oturumu kapat', `${s.cihaz} cihazındaki oturum kapatılsın mı?`, [
@@ -57,6 +59,9 @@ export default function Guvenlik() {
         <Row icon="chat" title="E-posta" sub={email || 'Eklenmemiş'} onPress={() => show('email')} />
         <Row icon="lock" title="Şifreyi değiştir" onPress={() => show('pw')} last />
       </Section>
+      {Platform.OS !== 'web' && <Section title="Uygulama kilidi" hint="Açıkken uygulama açılınca ve 30 saniyeden uzun arka planda kalınca parmak izi ya da Face ID ister.">
+        <ToggleRow title="Parmak izi / Face ID kilidi" value={lockOn} onChange={async v => { const e = await setLockOn(v); if (e && e !== 'Doğrulanmadı') Alert.alert('Açılamadı', e); }} last />
+      </Section>}
       <Section title="İki adımlı doğrulama" hint="Açıkken girişte şifrenin yanında doğrulama uygulamasındaki 6 haneli kod da istenir.">
         {tfa.on ? <>
           <Row icon="check" iconColor={C.online} title="Açık" sub={`${tfa.backupLeft ?? 0} yedek kod kaldı`} />

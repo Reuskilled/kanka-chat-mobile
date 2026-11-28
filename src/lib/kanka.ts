@@ -75,6 +75,8 @@ function set(patch: Partial<State> | ((s: State) => Partial<State>)) {
   state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) };
   subs.forEach(f => f());
 }
+// Ekran dışı dinleyiciler (ana ekran widget'ı gibi)
+export function subscribe(fn: () => void) { subs.add(fn); return () => { subs.delete(fn); }; }
 export function useKanka<T>(pick: (s: State) => T): T {
   return useSyncExternalStore(cb => { subs.add(cb); return () => subs.delete(cb); }, () => pick(state), () => pick(state));
 }
@@ -310,6 +312,15 @@ export async function sbAddWav(serverId: string, uri: string, name: string, emoj
   if (b.length > 520 * 1024) return 'Ses dosyası çok büyük (en fazla 520 KB, 5 saniye)';
   const r = await ask<{ error?: string }>('sbAdd', { serverId, data: `data:audio/wav;base64,${b64(b)}`, name, emoji });
   return r?.error || (r ? null : 'Bağlantı yok');
+}
+
+// Başka uygulamadan "Kanka'ya paylaş": seçilen sohbet açılınca yazma kutusuna düşer
+type PendingShare = { chId: string; text: string; atts: Att[] };
+let pendingShare: PendingShare | null = null;
+export const setPendingShare = (p: PendingShare | null) => { pendingShare = p; };
+export function takeShare(chId: string): { text: string; atts: Att[] } | null {
+  if (!pendingShare || pendingShare.chId !== chId) return null;
+  const p = pendingShare; pendingShare = null; return { text: p.text, atts: p.atts };
 }
 
 export async function send(text: string, replyTo?: string | null, atts: Att[] = [], voice?: Voice): Promise<{ error?: string }> {

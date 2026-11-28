@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { type Att, type Voice, ask, dmAppCmds, msgLink, sendKind, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, typing, unlockE2E, useKanka } from '@/lib/kanka';
+import { type Att, type Voice, ask, dmAppCmds, msgLink, sendKind, delMsg, pinMsg, dmPeers, e2e, findChannel, join, leave, loadOlder, react, send, takeShare, typing, unlockE2E, useKanka } from '@/lib/kanka';
 import type { AppCmd, Msg } from '@/lib/types';
 import { dayLabel } from '@/lib/time';
 import { T, IconButton } from '@/components/ui';
@@ -29,6 +29,7 @@ type Row = { k: 'm'; m: Msg; head: boolean } | { k: 'd'; id: string; label: stri
 export default function Kanal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const [shared] = useState(() => takeShare(id));
   const me = useKanka(s => s.me);
   const msgs = useKanka(s => s.msgs[id] ?? EMPTY);
   const loaded = useKanka(s => !!s.msgs[id]);
@@ -198,7 +199,7 @@ export default function Kanal() {
           <IconButton label="Yanıtı iptal et" size={30} onPress={() => setReply(null)}><T style={{ color: C.muted, fontFamily: F.black }}>✕</T></IconButton>
         </View>
       )}
-      <Composer placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} extras={secure ? [] : [
+      <Composer initial={shared} placeholder={isDm ? `${title} kişisine yaz` : `#${title} kanalına yaz`} onSend={onSend} onVoice={onVoice} onTyping={typing} bottom={Math.max(insets.bottom, 10) + 4} secure={secure} cmds={cmds} onCmd={setCmd} extras={secure ? [] : [
         { t: 'GIF', ic: '🎞️', on: () => setPanel('gif') },
         { t: 'Anket', ic: '📊', on: () => setPanel('anket') },
         { t: 'Plan', ic: '🗓️', on: () => setPanel('plan') },
