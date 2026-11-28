@@ -19,5 +19,6 @@ export function dayLabel(t: number) {
   const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
   if (same(d, n)) return 'Bugün';
   const y = new Date(n); y.setDate(n.getDate() - 1); if (same(d, y)) return 'Dün';
+  const tm = new Date(n); tm.setDate(n.getDate() + 1); if (same(d, tm)) return 'Yarın';
   return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: d.getFullYear() === n.getFullYear() ? undefined : 'numeric' });
 }

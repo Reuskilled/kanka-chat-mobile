@@ -88,13 +88,21 @@ export type Msg = {
   enc?: unknown;
   reactions?: Record<string, string[]>;
   replyTo?: { id: string; author: string; text?: string; enc?: boolean } | null;
-  edited?: number;
+  edited?: number | boolean;
   deleted?: boolean;
+  pinned?: boolean;
   files?: { id?: string; url: string; name?: string; size?: number; kind?: string }[];
   image?: string | null;
   audio?: string | null;
   duration?: number;
-  gif?: string | null;
+  gif?: string | { url: string; prev?: string; w?: number; h?: number; title?: string } | null;
+  poll?: { question: string; options: { text: string; votes: string[] }[] };
+  plan?: { title: string; when?: string; going: string[] };
+  game?: { sides?: number; result?: number | string; x?: string; o?: string | null; board?: string; turn?: string; winner?: string | null };
+  song?: { title: string; url: string; by?: string };
+  thread?: { id: string; author: string; text: string; time: number }[];
+  fwd?: { author?: string | null };
+  xfrom?: { server?: string; channel?: string };
   bot?: { title?: string; text?: string; tone?: string; fields?: [string, string][]; plain?: boolean };
   app?: string; // geliştirici botunun mesajı
   appInfo?: { id: string; ad: string; gorunenAd?: string; dogrulandi?: boolean };
