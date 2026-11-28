@@ -175,10 +175,22 @@ export async function joinVoice(ch: string): Promise<{ error?: string }> {
   if (st().myVoice === ch) return {};
   joining = true; setVoice({ vConnecting: true });
   try {
-    if (st().myVoice) await leaveVoice(false);
-    try { localStream = await getMic(); } catch { return { error: 'Mikrofona erişilemedi. Ayarlardan Kanka\'ya mikrofon izni ver.' }; }
+    // Önce izin: yoksa mikrofon açılmaz, bulunduğun odadan da çıkılmaz
+    const can = await Promise.race([ask<{ error?: string }>('voiceCan', ch), new Promise<{ error?: string }>(r => setTimeout(() => r({}), 4000))]); // eski sunucu cevap vermezse beklemeden devam
+    if (can?.error) return { error: can.error };
+    const prev = st().myVoice;
+    if (!prev || !localStream) { try { localStream = await getMic(); } catch { return { error: 'Mikrofona erişilemedi. Ayarlardan Kanka\'ya mikrofon izni ver.' }; } }
     const r = await ask<{ error?: string; stage?: { speakers: string[]; hands: string[] } | null; srvMuted?: boolean; peers?: { sid: string; name: string; media?: { cam?: boolean; screen?: boolean } | null }[] }>('voiceJoin', ch);
-    if (r?.error) { localStream.getTracks().forEach((t: any) => t.stop()); localStream = null; return { error: r.error }; }
+    if (r?.error || !r) { // girilemedi: eski odada kal; hiçbir odada değilken açtığımız mikrofonu kapat
+      if (!prev) { localStream?.getTracks().forEach((t: any) => t.stop()); localStream = null; }
+      return { error: r?.error || 'Bağlantı yok' };
+    }
+    if (prev) { // sunucu eski odadan çıkardı; burada da eski bağlantıları kapat (mikrofon açık kalır)
+      if (speakT) { clearInterval(speakT); speakT = null; }
+      if (videoStream) stopVideo(true);
+      for (const sid of Object.keys(peers)) closePeer(sid);
+      setVoice({ speaking: {}, vPeers: [], vMedia: {}, vWatch: null, myCam: false, myScreen: false, vStage: null });
+    }
     await audioStart(st().speaker);
     setVoice({ myVoice: ch, speaking: {}, vStage: r.stage || null, ...(r.srvMuted ? { muted: true } : {}) });
     applyMute();
