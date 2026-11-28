@@ -11,6 +11,7 @@ import { VoiceNote } from './VoiceNote';
 import type { Msg } from '@/lib/types';
 import { T } from './ui';
 import { Avatar } from './Avatar';
+import { UserTag } from './TagChip';
 import { Icon } from './Icon';
 import { BotBadge, CompRows, EmbedCard, EphFooter } from './BotParts';
 import { FwdTag, MsgKind, RichText, ThreadChip, TicketActions } from './MsgExtras';
@@ -199,6 +200,7 @@ export const Message = memo(function Message({ m, head, onLong, chId, onThread }
         {head && (
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
             <T numberOfLines={1} onPress={person ? () => openUser(author) : undefined} style={{ flexShrink: 1, fontFamily: F.black, fontSize: 15, color: m.color || u?.color || C.ink }}>{name}</T>
+            {!!m.author && <UserTag name={m.author} />}
             {(m.app || u?.bot || m.kind === 'bot') && <BotBadge verified={m.kind === 'bot' || !!m.appInfo?.dogrulandi || (typeof u?.bot === 'object' && !!u.bot.dogrulandi)} />}
             <T style={{ fontSize: 11.5, color: C.faint }}>{clock(m.time)}</T>
             {!!m.edited && <T style={{ fontSize: 11, color: C.faint }}>(düzenlendi)</T>}

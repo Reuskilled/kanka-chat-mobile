@@ -6,3 +6,4 @@ export async function saveTemp(_name: string, bytes: Uint8Array, mime?: string):
 export async function openLocal(uri: string, _mime?: string, title?: string): Promise<void> {
   const a = document.createElement('a'); a.href = uri; a.download = title || 'dosya'; a.click();
 }
+export async function shareLocal(uri: string, mime?: string, title?: string): Promise<void> { return openLocal(uri, mime, title); }

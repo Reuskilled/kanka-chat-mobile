@@ -11,6 +11,7 @@ import { fire, logout, useKanka, useSparkSatis } from '@/lib/kanka';
 import { T, IconButton } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
+import { EntrySheet } from '@/components/EntrySheet';
 
 const STATUS: Record<string, string> = { online: 'Çevrimiçi', idle: 'Boşta', dnd: 'Rahatsız etmeyin', invisible: 'Görünmez' };
 const STATUS_SUB: Record<string, string> = { online: '', idle: 'Uzakta görünürsün', dnd: 'Bildirimler sessize alınır', invisible: 'Çevrimdışı görünürsün ama her şeyi kullanabilirsin' };
@@ -25,6 +26,8 @@ function Row({ icon, label, value, onPress, danger }: { icon: string; label: str
     </Pressable>
   );
 }
+const wrOpen = () => { const n = new Date(Date.now() + 3 * 3600e3); return n.getUTCMonth() === 11 && n.getUTCDate() >= 31 || n.getUTCMonth() === 0; };
+const wrYear = () => { const n = new Date(Date.now() + 3 * 3600e3); return n.getUTCFullYear() - (n.getUTCMonth() === 0 ? 1 : 0); };
 const Sep = () => <View style={{ height: 1, backgroundColor: C.line, marginLeft: 46 }} />;
 
 function Stat({ v, l, c }: { v: string; l: string; c?: string }) {
@@ -46,6 +49,9 @@ export default function Profil() {
   const satis = useSparkSatis();
   const reqIn = useKanka(s => s.reqIn.length);
   const [stOpen, setStOpen] = useState(false);
+  const [enOpen, setEnOpen] = useState(false);
+  const entry = useKanka(s => s.acct.entry);
+  const tagNow = useKanka(s => { const id = s.users[s.me || '']?.tg; return id ? s.acct.tagDefs[id] : undefined; });
   if (!u) return null;
   const banner = abs(u.bannerImg);
   const [c1, c2] = u.theme?.length ? u.theme : ['#4c1d95', '#9d174d'];
@@ -58,7 +64,7 @@ export default function Profil() {
         <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', inset: 0 }} />
         {banner && <Image source={{ uri: banner }} style={{ position: 'absolute', inset: 0 }} contentFit="cover" />}
         <View style={{ position: 'absolute', right: 12, top: insets.top + 12 }}>
-          <IconButton label="Ayarlar" size={40} bg="rgba(0,0,0,0.45)" onPress={() => web('/app')}><Icon name="settings" size={20} color="#fff" /></IconButton>
+          <IconButton label="Ayarlar" size={40} bg="rgba(0,0,0,0.45)" onPress={() => router.push('/guvenlik' as any)}><Icon name="settings" size={20} color="#fff" /></IconButton>
         </View>
       </View>
       <View style={{ paddingHorizontal: 16, marginTop: -44, flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
@@ -89,13 +95,21 @@ export default function Profil() {
         <Sep />
         <Row icon="users" label="Arkadaşlar" value={reqIn ? `${reqIn} yeni istek` : String(friends)} onPress={() => router.push('/arkadaslar' as any)} />
         <Sep />
+        <Row icon="userAdd" label="Davet kodlarım" onPress={() => router.push('/davet-kodlari' as any)} />
+        <Sep />
         <Row icon="palette" label="Market" value="Çerçeve, efekt, afiş" onPress={() => router.push('/gorunum' as any)} />
+        <Sep />
+        <Row icon="tag" label="Sunucu etiketi" value={tagNow ? tagNow.t : undefined} onPress={() => router.push('/etiket' as any)} />
+        <Sep />
+        <Row icon="speaker" label="Giriş sesi" value={entry ? `${entry.emoji || ''} ${entry.name}`.trim() : 'Yok'} onPress={() => setEnOpen(true)} />
+        <Sep />
+        <Row icon="sparkle" label={`Kanka Wrapped ${wrYear()}`} value={wrOpen() ? 'Hazır 🎁' : '31 Aralık’ta'} onPress={() => router.push({ pathname: '/wrapped', params: { year: String(wrYear()) } })} />
         <Sep />
         <Row icon="star" label="Sıralama ve rozetler" onPress={() => router.push('/siralama' as any)} />
         <Sep />
         <Row icon="lock" label="Hesap ve güvenlik" onPress={() => router.push('/guvenlik' as any)} />
         <Sep />
-        <Row icon="bell" label="Bildirimler" onPress={() => web('/app')} />
+        <Row icon="bell" label="Bildirimler" onPress={() => router.push('/bildirim-ayarlari' as any)} />
         <Sep />
         {(satis || !!u.sp) && <Row icon="zap" label="Kanka Spark" value={u.sp ? 'Açık' : undefined} onPress={() => router.push('/spark' as any)} />}
       </View>
@@ -114,6 +128,7 @@ export default function Profil() {
         <Row icon="trash" label="Hesabı sil" danger onPress={() => router.push('/hesap-sil' as any)} />
       </View>
       <T style={{ textAlign: 'center', color: C.faint, fontSize: 12, marginTop: 14 }}>Kanka Chat {APP_VERSION}</T>
+      <EntrySheet open={enOpen} onClose={() => setEnOpen(false)} />
       <Sheet open={stOpen} onClose={() => setStOpen(false)} title="Durumun">
         <View style={{ borderRadius: 14, backgroundColor: C.card, overflow: 'hidden' }}>
           {(['online', 'idle', 'dnd', 'invisible'] as const).map((k, i) => (

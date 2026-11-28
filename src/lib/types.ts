@@ -2,6 +2,7 @@
 export type User = {
   name: string;
   id?: string;
+  tg?: string | null; // taktığı sunucu etiketi
   displayName?: string | null;
   pronouns?: string | null;
   color?: string;

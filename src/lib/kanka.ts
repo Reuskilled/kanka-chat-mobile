@@ -63,11 +63,15 @@ export type State = {
   appForm: AppForm | null; // botun açtığı form
   selServer: { id: string; n: number } | null;
   myEmail: string | null; // ana ekranda açılacak sunucu (katılınca / kurunca)
+  acct: Acct; // giriş sesi, gizlilik tercihleri, sunucu etiketleri
 };
+export type TagDef = { t: string; i?: string; c?: string; st?: string; fx?: string; ad: string; simge?: string | null; simgeImg?: string | null };
+export type Onb = { msg?: boolean; voice?: boolean; invite?: boolean; profile?: boolean; done?: boolean; dismissed?: boolean; rewarded?: boolean };
+export type Acct = { onb: Onb | null; entry: { s: string | null; id: string; name: string; emoji?: string } | null; wrapOff: boolean; matchOff: boolean; tagDefs: Record<string, TagDef>; tagCan: string[] };
 
 let state: State = {
   phase: 'boot', connected: false, me: null, meUser: null, users: {}, presence: {}, servers: [], dms: [], voice: {},
-  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, u15: null, needVeli: false, warns: [], welcomeFor: null, friends: [], reqIn: [], reqOut: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, vStage: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null, selServer: null, myEmail: null,
+  lastMsg: {}, msgs: {}, more: {}, typing: {}, cur: null, ageGate: null, u15: null, needVeli: false, warns: [], welcomeFor: null, friends: [], reqIn: [], reqOut: [], blocked: [], userSheet: null, dec: {}, ice: [], vflags: {}, myVoice: null, vPeers: [], vConnecting: false, muted: false, deaf: false, speaker: true, speaking: {}, ringing: null, outgoing: null, myCam: false, myScreen: false, camFront: true, vMedia: {}, vWatch: null, vVer: 0, vToast: null, vStage: null, minor: false, magaza: { play: false, apple: false }, e2eLocked: false, e2eBusy: false, notice: null, prefs: null, appForm: null, selServer: null, myEmail: null, acct: { onb: null, entry: null, wrapOff: false, matchOff: false, tagDefs: {}, tagCan: [] },
 };
 const subs = new Set<() => void>();
 export const getState = () => state;
@@ -136,6 +140,7 @@ function applyLogin(r: LoginResult) {
   set({
     phase: 'in', me: r.user?.name ?? null, meUser: r.user ?? null, users, presence, servers: r.servers || [], dms: r.dms || [],
     voice: r.voice || {}, ice: (r as any).ice || [], lastMsg: r.lastMsg || {}, ageGate: r.ageGate ?? null, u15: r.u15 ?? null, needVeli: !!r.needVeli, warns: r.warns || [], minor: !!r.minor, magaza: (r as any).magaza || { play: false, apple: false }, friends: r.social?.friends || [], reqIn: r.social?.reqIn || [], reqOut: r.social?.reqOut || [], blocked: r.social?.blocked || [], prefs: r.prefs || state.prefs, myEmail: (r as any).myEmail ?? state.myEmail,
+    acct: { onb: (r as any).onb || null, entry: (r as any).entrySound || null, wrapOff: !!(r as any).wrapOff, matchOff: !!(r as any).matchOff, tagDefs: (r as any).tagDefs || {}, tagCan: (r as any).tagCan || [] },
   });
   if (r.token) setItem(TOKEN, r.token);
   // Sunucu bildirim göndermeden önce "kişi şu an uygulamaya bakıyor mu" diye bakar: ön planda mıyız söyle
@@ -202,6 +207,10 @@ function onEvents(s: Socket) {
   s.on('voiceFlags', (vflags: State['vflags']) => set({ vflags: vflags || {} }));
   s.on('ice', (ice: any[]) => set({ ice: ice || [] }));
   s.on('prefs', (p: Prefs) => p && set({ prefs: p }));
+  s.on('tagDefs', (d: Record<string, TagDef>) => set(st => ({ acct: { ...st.acct, tagDefs: d || {} } })));
+  s.on('onb', (ob: Onb) => set(st => ({ acct: { ...st.acct, onb: ob } })));
+  s.on('onbReward', () => set(st => ({ acct: { ...st.acct, onb: { ...(st.acct.onb || {}), rewarded: true } } })));
+  s.on('tagCan', (l: string[]) => set(st => ({ acct: { ...st.acct, tagCan: l || [] } })));
   s.on('appForm', (f: AppForm) => f?.iid && set({ appForm: f }));
   s.on('siteWarn', (w: SiteWarn) => w?.id && set(st => ({ warns: [...st.warns.filter(x => x.id !== w.id), w] })));
   s.on('ageGate', () => { reauth(); }); // yetkili yaş kilidini kaldırdı: güncel durumu al
@@ -561,3 +570,30 @@ export async function hqTops() { return (await ask<{ lvl: TopRow[]; stk: TopRow[
 export async function leaderboard(serverId: string): Promise<TopRow[]> { const r = await ask<TopRow[]>('leaderboard', serverId); return Array.isArray(r) ? r : []; }
 export async function myBadges() { return (await ask<{ all?: string[]; hidden?: string[]; meta?: Record<string, [string, string, string]> }>('myBadges', {})) || {}; }
 export async function hideBadges(hidden: string[]) { const r = await ask<{ error?: string }>('hideBadges', { hidden }); return r?.error || null; }
+
+// ---- Hesap: giriş sesi, gizlilik, sunucu etiketi, davet kodları, veri indirme ----
+export function setAcct(patch: Partial<Acct>) { set(st => ({ acct: { ...st.acct, ...patch } })); }
+export async function setEntrySound(v: { s: string | null; id: string } | null): Promise<string | null> {
+  const r = await ask<{ ok?: boolean; error?: string; entry?: Acct['entry'] }>('sbEntry', v);
+  if (r?.ok) setAcct({ entry: r.entry || null });
+  return r?.ok ? null : r?.error || 'Bağlantı yok';
+}
+export async function statPrefs(p: { wrapOff?: boolean; matchOff?: boolean; wipe?: boolean }): Promise<string | null> {
+  const r = await ask<{ ok?: boolean; error?: string; wrapOff?: boolean; matchOff?: boolean }>('statPrefs', p);
+  if (r?.ok) setAcct({ wrapOff: !!r.wrapOff, matchOff: !!r.matchOff });
+  return r?.ok ? null : r?.error || 'Bağlantı yok';
+}
+export async function setTag(sid: string | null): Promise<string | null> {
+  const r = await ask<{ ok?: boolean; error?: string }>('tagSet', sid);
+  return r?.ok ? null : r?.error || 'Bağlantı yok';
+}
+export type TagInfo = TagDef & { id: string; uye: number; takan: number; member: boolean; canUse: boolean; mine: boolean; public: boolean };
+export const tagInfo = (sid: string) => ask<TagInfo | null>('tagInfo', sid);
+export type InvCode = { code: string; usedBy?: string | null; at?: number };
+export const myCodes = () => ask<{ ok?: boolean; error?: string; beta?: boolean; codes?: InvCode[]; joined?: number }>('myCodes');
+export const exportData = () => ask<{ ok?: boolean; error?: string; data?: unknown }>('exportData');
+export async function onbSet(k: 'dismissed' | 'done' | 'seen') {
+  const r = await ask<{ ok?: boolean; onb?: Onb }>('onbSet', k);
+  if (r?.onb) setAcct({ onb: r.onb });
+}
+export const onbMarkInvite = (serverId?: string) => fire('onbMark', { k: 'invite', serverId });

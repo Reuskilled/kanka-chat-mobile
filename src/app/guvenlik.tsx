@@ -3,12 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { C, F } from '@/lib/theme';
-import { changeName, changePassword, sessKill, sessList, setEmail, tfaDisable, tfaEnable, tfaNewBackup, tfaSetup, tfaStatus, useKanka, useReady, type Sess } from '@/lib/kanka';
+import { changeName, changePassword, sessKill, sessList, setEmail, tfaDisable, tfaEnable, tfaNewBackup, tfaSetup, tfaStatus, useKanka, statPrefs, exportData, useReady, type Sess } from '@/lib/kanka';
 import { Screen, Section, Row, Sheet, ToggleRow } from '@/components/AdminUI';
 import { setLockOn, useLock } from '@/lib/lock';
 import { T, Field, Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { when } from '@/lib/time';
+import { saveTemp, shareLocal } from '@/lib/files';
 
 type Open = null | 'email' | 'pw' | 'name' | 'tfa' | 'tfaOff' | 'backup';
 
@@ -52,6 +53,18 @@ export default function Guvenlik() {
     { text: 'Hepsinden çık', style: 'destructive', onPress: async () => { const r = await sessKill({ all: true }); if (r.error) Alert.alert('Olmadı', r.error); else Alert.alert('Tamam', `${r.n || 0} oturum kapatıldı.`); load(); } },
   ]);
 
+  const acct = useKanka(st => st.acct);
+  const runPref = async (p: { wrapOff?: boolean; matchOff?: boolean }) => { const e = await statPrefs(p); if (e) Alert.alert('Olmadı', e); };
+  const wipe = () => Alert.alert('Sayılar silinsin mi?', 'Bu yıl için tutulan tüm sayılar (ses süresi, mesaj sayıları, dinleme, oyun) silinir. Yıl özetin boş başlar.', [
+    { text: 'Vazgeç', style: 'cancel' },
+    { text: 'Sil', style: 'destructive', onPress: async () => { const e = await statPrefs({ wipe: true }); Alert.alert(e ? 'Olmadı' : 'Tamam', e || 'Sayıların silindi.'); } },
+  ]);
+  const download = async () => {
+    const r = await exportData(); if (!r?.ok) return Alert.alert('Olmadı', r?.error || 'Bağlantı yok');
+    try { const uri = await saveTemp(`kanka-verilerim-${me}.json`, new TextEncoder().encode(JSON.stringify(r.data, null, 2)), 'application/json'); await shareLocal(uri, 'application/json', 'Kanka verilerim'); }
+    catch (e: any) { Alert.alert('Kaydedilemedi', e?.message || 'Bir şeyler ters gitti'); }
+  };
+
   return (
     <Screen title="Hesap ve güvenlik">
       <Section title="Hesap">
@@ -78,6 +91,12 @@ export default function Guvenlik() {
         {!sess?.length && <T style={{ padding: 14, color: C.muted }}>{sess === null ? 'Yükleniyor…' : 'Oturum bilgisi alınamadı'}</T>}
       </Section>
       {(sess?.length || 0) > 1 && <Button title="Diğer tüm cihazlardan çık" kind="danger" onPress={killAll} />}
+      <Section title="Verilerin ve gizlilik" hint="Yıl özeti için sadece sayılar tutulur (kaç dakika seste kaldın, en çok kimle konuştun gibi). Kapatırsan bundan sonra hiçbir şey sayılmaz.">
+        <ToggleRow title="Yıl özetim için say" sub="31 Aralık’ta Kanka Wrapped" value={!acct.wrapOff} onChange={v => runPref({ wrapOff: !v })} />
+        <ToggleRow title="Zevk eşleşmesi" sub="Müzik ve oyun zevkine göre kanka önerisi" value={!acct.matchOff} onChange={v => runPref({ matchOff: !v })} />
+        <Row icon="trash" title="Bu yılın sayılarını sil" onPress={wipe} />
+        <Row icon="file" title="Verilerimi indir" sub="Profilin, sunucuların ve mesajların (JSON)" onPress={download} last />
+      </Section>
 
       <Sheet open={open === 'name'} onClose={close} title="Kullanıcı adını değiştir">
         <T style={{ color: C.muted, fontSize: 13.5 }}>Haftada bir değiştirebilirsin. Eski adın bir süre başkası tarafından alınamaz.</T>
